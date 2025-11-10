@@ -12,8 +12,6 @@ class ScreenPage extends StatefulWidget {
 class _ScreenPageState extends State<ScreenPage> {
   @override
   Widget build(BuildContext context) {
-    ScreenHelper.init(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('屏幕适配测试'),
@@ -35,10 +33,10 @@ class _ScreenPageState extends State<ScreenPage> {
               ),
               child: const Text('默认大小'),
             ),
-            hiSpace(height: 40),
+            hiSpace(height: 40.px),
             Container(
-              width: 200.33.px,
-              height: 200.33.px,
+              width: 200.px,
+              height: 200.px,
               decoration: const BoxDecoration(
                 color: Colors.blue,
               ),

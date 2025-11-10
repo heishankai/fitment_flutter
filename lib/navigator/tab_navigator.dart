@@ -3,6 +3,7 @@ import 'package:fitment_flutter/pages/home_page/index.dart';
 import 'package:fitment_flutter/pages/mine_page/index.dart';
 import 'package:fitment_flutter/pages/message_page/index.dart';
 import 'package:fitment_flutter/pages/income_page/index.dart';
+import 'package:fitment_flutter/utils/screen_adapter_helper.dart';
 
 /// 首页底部导航器
 class TabNavigator extends StatefulWidget {
@@ -22,6 +23,9 @@ class _TabNavigatorState extends State<TabNavigator> {
 
   @override
   Widget build(BuildContext context) {
+    // 统一初始化屏幕适配
+    ScreenHelper.init(context);
+    
     return Scaffold(
       body: PageView(
         controller: _controller,

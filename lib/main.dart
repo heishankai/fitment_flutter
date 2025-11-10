@@ -35,9 +35,9 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.done) {
             print('LoginDao.getToken()==============>: ${LoginDao.getToken()}');
 
-            if (LoginDao.getToken() == null) {
-              return const LoginPage();
-            }
+            // if (LoginDao.getToken() == null) {
+            //   return const LoginPage();
+            // }
             return const TabNavigator();
           }
           // 进度条
