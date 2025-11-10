@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:fitment_flutter/dao/header_util.dart';
+import 'package:fitment_flutter/config/api_config.dart';
 import 'package:flutter_hi_cache/flutter_hi_cache.dart';
 
 /// 登录 DAO
@@ -8,7 +9,9 @@ class LoginDao {
   static const token = 'token';
 
   static Login({required String phone, required String verifyCode}) async {
-    var uri = Uri.http('localhost:3000', '/admin/login');
+    // 根据环境动态选择 API 地址
+    var uri = ApiConfig.createUri('/admin/login');
+    print('📡 请求 URI: $uri');
 
     final response = await http.post(
       uri,
