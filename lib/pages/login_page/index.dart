@@ -5,7 +5,6 @@ import 'package:fitment_flutter/utils/view_util.dart';
 import 'package:fitment_flutter/components/input_widget.dart';
 import 'dart:async';
 import 'package:fitment_flutter/utils/navigator_util.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// 登录页
 class LoginPage extends StatefulWidget {
@@ -111,18 +110,13 @@ class _LoginPageState extends State<LoginPage> {
             onPressed: () => _onGetVerifyCode(),
             enable: _countdown == 0,
           ),
-          ButtonWidget(
-            title: '跳转到H5页面',
-            onPressed: () => _onJumpToH5Page(),
-            enable: _countdown == 0,
-          ),
         ],
       ),
     );
   }
 
   /// 获取验证码
-  void _onGetVerifyCode() {
+  void _onGetVerifyCode() async {
     // 直接从 controller 获取值，确保获取到最新的输入
     String phoneValue = _phoneController.text.trim();
 
@@ -138,21 +132,26 @@ class _LoginPageState extends State<LoginPage> {
 
     if (_countdown != 0) return;
 
-    _startCountdown();
-    showToast(context, '获取验证码成功');
-    // 让验证码输入框获取焦点
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _verifyCodeFocusNode.requestFocus();
-    });
-  }
+    // 调用 API 获取验证码
+    try {
+      final result = await LoginDao.getSmsCode(phone: phoneValue);
 
-  /// 跳转到 外部应用 页面
-  void _onJumpToH5Page() async {
-    Uri uri = Uri.parse('https://zjiangyun.cn/fitment-pc/login');
-
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      showToast(context, '页面跳转失败');
-      return;
+      if (result['success'] == true) {
+        // 成功获取验证码，开始倒计时
+        _startCountdown();
+        showToast(context, result['message'] ?? '验证码发送成功');
+        // 让验证码输入框获取焦点
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _verifyCodeFocusNode.requestFocus();
+        });
+      } else {
+        // 获取验证码失败
+        String errorMessage = result['message'] ?? '获取验证码失败，请稍后重试';
+        showToast(context, errorMessage);
+      }
+    } catch (e) {
+      print('获取验证码异常: $e');
+      showToast(context, '获取验证码失败，请稍后重试');
     }
   }
 
