@@ -2,6 +2,7 @@
 import 'package:fitment_flutter/dao/login_dao.dart';
 import 'package:fitment_flutter/pages/login_page/index.dart';
 import 'package:fitment_flutter/navigator/tab_navigator.dart';
+import 'package:fitment_flutter/utils/screen_adapter_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hi_cache/flutter_hi_cache.dart';
 
@@ -30,14 +31,15 @@ class MyApp extends StatelessWidget {
       home: FutureBuilder<dynamic>(
         future: HiCache.preInit(),
         builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-          //  return const ScreenPage();
+          // 初始化屏幕适配工具
+          ScreenHelper.init(context);
 
           if (snapshot.connectionState == ConnectionState.done) {
             print('LoginDao.getToken()==============>: ${LoginDao.getToken()}');
 
-            // if (LoginDao.getToken() == null) {
-            //   return const LoginPage();
-            // }
+            if (LoginDao.getToken() == null) {
+              return const LoginPage();
+            }
             return const TabNavigator();
           }
           // 进度条

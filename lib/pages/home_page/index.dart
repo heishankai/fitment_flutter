@@ -10,9 +10,11 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with AnimationEagerListenerMixin {
+class _HomePageState extends State<HomePage>
+    with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
+    super.build(context); // 必须调用，用于 AutomaticKeepAliveClientMixin
     NavigatorUtil.updateContext(context);
 
     return Scaffold(
@@ -54,4 +56,10 @@ class _HomePageState extends State<HomePage> with AnimationEagerListenerMixin {
 
   /// 保持页面不卸载，不会重新加载数据
   bool get wantKeepAlive => true;
+
+  @override
+  void dispose() {
+    // 必须调用 super.dispose() 来释放 mixin 中的资源
+    super.dispose();
+  }
 }

@@ -59,3 +59,10 @@
    ```bash
    xcrun simctl list devices available
    ```
+
+
+# 项目处理
+- 清空缓存：flutter clean
+- 重新下载依赖：flutter pub get
+- stful : 快捷创建有状态的 widget
+- stless : 快捷创建无状态的 widget

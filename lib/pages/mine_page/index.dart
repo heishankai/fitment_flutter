@@ -88,9 +88,7 @@ class _MinePageState extends State<MinePage> {
           _buildStatsSection(),
           SizedBox(height: 20.px),
           EditProfileButton(
-            onTap: () {
-              // TODO: 跳转到编辑资料页面
-            },
+            onTap: () {},
           ),
         ],
       ),
@@ -240,41 +238,31 @@ class _MinePageState extends State<MinePage> {
               icon: Icons.verified_user,
               color: Colors.blue,
               title: '实名认证',
-              onTap: () {
-                // TODO: 跳转到实名认证页面
-              },
+              onTap: () {},
             ),
             MenuItem(
               icon: Icons.description,
               color: Colors.purple,
               title: '我的订单',
-              onTap: () {
-                // TODO: 跳转到我的订单页面
-              },
+              onTap: () {},
             ),
             MenuItem(
               icon: Icons.workspace_premium,
               color: Colors.orange,
               title: '技能认证',
-              onTap: () {
-                // TODO: 跳转到技能认证页面
-              },
+              onTap: () {},
             ),
             MenuItem(
               icon: Icons.language,
               color: Colors.green,
               title: '个人主页',
-              onTap: () {
-                // TODO: 跳转到个人主页
-              },
+              onTap: () {},
             ),
             MenuItem(
               icon: Icons.location_on,
               color: Colors.red,
               title: '我的工地',
-              onTap: () {
-                // TODO: 跳转到我的工地页面
-              },
+              onTap: () {},
             ),
             MenuItem(
               icon: Icons.location_on,
