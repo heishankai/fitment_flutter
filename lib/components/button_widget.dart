@@ -46,7 +46,7 @@ class ButtonWidget extends StatelessWidget {
             title,
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: enable ? Colors.white : Colors.grey[600],
             ),
           ),
