@@ -190,24 +190,56 @@ class _LoginPageState extends State<LoginPage> {
     phone = phoneValue;
     verifyCode = verifyCodeValue;
 
-    final result = await LoginDao.Login(phone: phone!, verifyCode: verifyCode!);
-
-    // if (result['success'] == !true) {
-    //   showToast(context, result['message'] ?? '登录失败');
-    //   return;
-    // }
-
+    // 显示加载状态
     setState(() {
       loginDisabled = true;
-      phone = null;
-      verifyCode = null;
-      _countdown = 0;
     });
 
-    _timer?.cancel();
-    _verifyCodeFocusNode.unfocus();
+    try {
+      final result = await LoginDao.Login(
+        phone: phoneValue,
+        verifyCode: verifyCodeValue,
+      );
 
-    NavigatorUtil.goToHome(context);
+      // 检查登录结果
+      if (result['success'] == true || result['code'] == 200) {
+        // 登录成功
+        showToast(context, '登录成功');
+        
+        // 清空输入框和状态
+        setState(() {
+          loginDisabled = false;
+          phone = null;
+          verifyCode = null;
+          _countdown = 0;
+          _phoneController.clear();
+          _verifyCodeController.clear();
+        });
+
+        _timer?.cancel();
+        _verifyCodeFocusNode.unfocus();
+
+        // 跳转到首页
+        NavigatorUtil.goToHome(context);
+      } else {
+        // 登录失败
+        String errorMessage = result['message'] ?? '登录失败，请稍后重试';
+        showToast(context, errorMessage);
+        
+        // 重置登录状态，允许重新登录
+        setState(() {
+          loginDisabled = false;
+        });
+      }
+    } catch (e) {
+      print('登录异常: $e');
+      showToast(context, '登录失败，请稍后重试');
+      
+      // 重置登录状态
+      setState(() {
+        loginDisabled = false;
+      });
+    }
   }
 
   @override

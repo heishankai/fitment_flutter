@@ -4,6 +4,8 @@ import 'package:fitment_flutter/pages/screen_page.dart';
 import 'package:fitment_flutter/pages/mine_page/components/menu_item.dart';
 import 'package:fitment_flutter/pages/mine_page/components/edit_profile_button.dart';
 import 'package:fitment_flutter/utils/screen_adapter_helper.dart';
+import 'package:fitment_flutter/dao/login_dao.dart';
+import 'package:fitment_flutter/pages/userinfo_page/index.dart';
 
 /// 我的页面
 class MinePage extends StatefulWidget {
@@ -16,7 +18,25 @@ class MinePage extends StatefulWidget {
 class _MinePageState extends State<MinePage> {
   final int completedOrders = 156;
   final double rating = 4.9;
-  final String nickname = '张三'; // 昵称
+  String? nickname;
+  String? avatar;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  /// 加载用户信息
+  void _loadUserInfo() {
+    var userInfo = LoginDao.getLocalUserInfo();
+    if (userInfo != null) {
+      setState(() {
+        nickname = userInfo['nickname'] as String?;
+        avatar = userInfo['avatar'] as String?;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,45 +51,40 @@ class _MinePageState extends State<MinePage> {
     );
   }
 
-  /// 构建顶部头部区域
+  /// 构建顶部头部区域（无遮挡、InkWell 可正常点击）
   Widget _buildHeader() {
     return SliverToBoxAdapter(
       child: Column(
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // 渐变背景
-              Container(
-                height: 200.px,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.topRight,
-                    colors: [Color(0xFF00CEC9), Color(0xFF00B4D8)],
-                  ),
-                ),
+          // 顶部渐变背景
+          Container(
+            height: 120.px,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.topRight,
+                colors: [Color(0xFF00CEC9), Color(0xFF00B4D8)],
               ),
-              // 用户信息卡片
-              Positioned(
-                top: 120.px,
-                left: 16.px,
-                right: 16.px,
-                child: _buildUserCard(),
-              ),
-            ],
+            ),
           ),
-          // 底部间距，确保卡片不遮挡菜单
-          SizedBox(height: 190.px),
+
+          // 让卡片往上漂浮
+          Transform.translate(
+            offset: Offset(0, -50.px),
+            child: _buildUserCard(),
+          ),
+
+          SizedBox(height: 10.px),
         ],
       ),
     );
   }
 
-  /// 构建用户信息卡片
+  /// 用户信息卡片（点击区域完全无遮挡）
   Widget _buildUserCard() {
     return Container(
       padding: EdgeInsets.all(20.px),
+      margin: EdgeInsets.symmetric(horizontal: 16.px),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.px),
@@ -87,8 +102,13 @@ class _MinePageState extends State<MinePage> {
           SizedBox(height: 20.px),
           _buildStatsSection(),
           SizedBox(height: 20.px),
+
+          // 编辑按钮
           EditProfileButton(
-            onTap: () {},
+            onTap: () {
+              print('🔘 编辑资料按钮被点击');
+              NavigatorUtil.push(context, const UserinfoPage());
+            },
           ),
         ],
       ),
@@ -126,21 +146,34 @@ class _MinePageState extends State<MinePage> {
                   shape: BoxShape.circle,
                   color: Colors.white,
                 ),
-                child: Icon(Icons.person, size: 50.px, color: Colors.grey),
+                child: avatar != null && avatar!.isNotEmpty
+                    ? ClipOval(
+                        child: Image.network(
+                          avatar!,
+                          width: 74.px,
+                          height: 74.px,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(Icons.person,
+                                size: 50.px, color: Colors.grey);
+                          },
+                        ),
+                      )
+                    : Icon(Icons.person, size: 50.px, color: Colors.grey),
               ),
             ),
           ],
         ),
+
         SizedBox(width: 16.px),
-        // 昵称和认证标签
+
+        // 昵称与认证标签
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 昵称
               Text(
-                nickname,
+                nickname ?? '未设置昵称',
                 style: TextStyle(
                   fontSize: 20.px,
                   fontWeight: FontWeight.bold,
@@ -148,7 +181,6 @@ class _MinePageState extends State<MinePage> {
                 ),
               ),
               SizedBox(height: 12.px),
-              // 认证标签
               Row(
                 children: [
                   _buildBadge('已实名', Colors.blue, Icons.verified),
@@ -201,7 +233,6 @@ class _MinePageState extends State<MinePage> {
     );
   }
 
-  /// 构建单个统计项
   Widget _buildStatItem(String value, String label) {
     return Column(
       children: [
@@ -230,7 +261,7 @@ class _MinePageState extends State<MinePage> {
   /// 构建菜单列表
   Widget _buildMenuList() {
     return SliverPadding(
-      padding: EdgeInsets.only(top: 12.px, bottom: 20.px),
+      padding: EdgeInsets.only(top: 0.px, bottom: 20.px),
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [

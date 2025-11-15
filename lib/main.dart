@@ -35,8 +35,6 @@ class MyApp extends StatelessWidget {
           ScreenHelper.init(context);
 
           if (snapshot.connectionState == ConnectionState.done) {
-            print('LoginDao.getToken()==============>: ${LoginDao.getToken()}');
-
             if (LoginDao.getToken() == null) {
               return const LoginPage();
             }
