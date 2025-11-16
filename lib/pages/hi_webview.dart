@@ -1,5 +1,8 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:fitment_flutter/utils/navigator_util.dart';
+import 'package:fitment_flutter/dao/login_dao.dart';
+import 'package:fitment_flutter/components/loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -41,6 +44,7 @@ class _HiWebViewState extends State<HiWebView> {
 
   String? url;
   late WebViewController controller;
+  bool _isLoading = true; // 加载状态
 
   @override
   void initState() {
@@ -58,8 +62,34 @@ class _HiWebViewState extends State<HiWebView> {
         /// http 无法打开 改为https
         url = url!.replaceAll('http://', 'https://');
       }
+
+      // 给初始 URL 添加 token 参数
+      url = _addTokenToUrl(url!);
     }
     _initWebViewController();
+  }
+
+  /// 给 URL 添加 token 参数
+  String _addTokenToUrl(String urlString) {
+    try {
+      Uri uri = Uri.parse(urlString);
+      String? token = LoginDao.getToken();
+
+      // 如果已经有 token 参数，就不添加
+      if (uri.queryParameters.containsKey('token') || token == null) {
+        return urlString;
+      }
+
+      // 添加 token 参数
+      Map<String, String> queryParams = Map.from(uri.queryParameters);
+      queryParams['token'] = token;
+
+      Uri newUri = uri.replace(queryParameters: queryParams);
+      return newUri.toString();
+    } catch (e) {
+      debugPrint('❌ 添加 token 参数失败: $e');
+      return urlString;
+    }
   }
 
   /// 初始化 WebViewController 实例
@@ -76,40 +106,59 @@ class _HiWebViewState extends State<HiWebView> {
             print('WebView is loading (progress : $progress%)');
           },
           onPageStarted: (String url) {
+            print('页面加载开始: $url');
             /// 页面加载开始
-            print('WebView is loading: $url');
+            if (mounted) {
+              setState(() {
+                _isLoading = true;
+              });
+            }
+            _injectUserInfo();
           },
           onPageFinished: (String url) {
             /// 页面加载完成
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
             _handleBackForbid();
+            _injectUserInfo();
           },
           onWebResourceError: (WebResourceError error) {
             /// 页面加载错误
             print('WebView error: ${error.description}');
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
           },
           onNavigationRequest: (NavigationRequest request) async {
-            debugPrint('WebView navigation request: ${request}');
-
-            /// 解析URL
-            var uri = Uri.parse(request.url);
-            var name = uri.queryParameters['name'];
-            var age = uri.queryParameters['age'];
-
-            print('WebView navigation request: ${request.url}');
-            // print('WebView navigation request: ${name}');
-            // print('WebView navigation request: ${age}');
-
-            /// 显示参数
-            // ScaffoldMessenger.of(context).showSnackBar(
-            //   SnackBar(
-            //     content: Text('name: ${name}, age: ${age}'),
-            //   ),
-            // );
-
+            // 检查是否需要拦截并返回主页
             if (_isToMain(request.url)) {
               /// 拦截URL，返回flutter页面
               NavigatorUtil.pop(context);
               return NavigationDecision.prevent;
+            }
+
+            // 检查 URL 是否已经有 token 参数
+            String requestUrl = request.url;
+            String? token = LoginDao.getToken();
+
+            if (token != null) {
+              try {
+                Uri uri = Uri.parse(requestUrl);
+                // 如果没有 token 参数，添加 token 并重新加载
+                if (!uri.queryParameters.containsKey('token')) {
+                  String newUrl = _addTokenToUrl(requestUrl);
+                  // 阻止原请求，加载带 token 的新 URL
+                  controller.loadRequest(Uri.parse(newUrl));
+                  return NavigationDecision.prevent;
+                }
+              } catch (e) {
+                debugPrint('❌ 处理导航请求失败: $e');
+              }
             }
 
             return NavigationDecision.navigate;
@@ -137,6 +186,23 @@ class _HiWebViewState extends State<HiWebView> {
     if (widget.backForbid == true) {
       controller.goBack();
     }
+  }
+
+  /// 将用户登录信息注入到浏览器的 localStorage
+  void _injectUserInfo() async {
+    // 获取用户信息，如果没有则使用空对象
+    Map<String, dynamic> userInfo = LoginDao.getLocalUserInfo() ?? {};
+
+    // 注入用户信息到 localStorage
+    String userInfoJson = jsonEncode(userInfo);
+    // 将 JSON 字符串作为字符串值存储，需要转义单引号和反斜杠
+    String escapedJson =
+        userInfoJson.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+
+    debugPrint('✅ 用户信息已成功注入到 WebView localStorage: $escapedJson');
+
+    String jsCode = "localStorage.setItem('userInfo', '$escapedJson');";
+    await controller.runJavaScript(jsCode);
   }
 
   @override
@@ -167,7 +233,13 @@ class _HiWebViewState extends State<HiWebView> {
           children: [
             _appBar(
                 Color(int.parse('0xff$statusBarColorStr')), backButtonColor),
-            Expanded(child: WebViewWidget(controller: controller)),
+            Expanded(
+              child: LoadingWidget(
+                isLoading: _isLoading,
+                cover: true, // 使用覆盖模式，加载动画覆盖在 WebView 上
+                child: WebViewWidget(controller: controller),
+              ),
+            ),
           ],
         )));
   }

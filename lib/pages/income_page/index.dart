@@ -19,7 +19,7 @@ class _IncomePageState extends State<IncomePage> {
           onTap: () {
             NavigatorUtil.jumpH5(
                 context: context,
-                url: 'http://localhost:5176/fitment-h5/',
+                url: 'http://localhost:5173/fitment-h5/',
                 title: '聊天',
                 statusBarColor: '00cec9');
           },

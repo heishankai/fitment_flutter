@@ -13,9 +13,8 @@ class _MinePageState extends State<MinePage> {
   Widget build(BuildContext context) {
     return const Scaffold(
         body: HiWebView(
-      url: 'http://localhost:5176/fitment-h5/mine?name=张三&age=18',
+      url: 'http://localhost:5173/fitment-h5/mine',
       statusBarColor: '00cec9',
-      title: '我的',
       hideAppBar: true,
     ));
   }

@@ -23,7 +23,7 @@ class _MessagePageState extends State<MessagePage>
   Widget build(BuildContext context) {
     return const Scaffold(
         body: HiWebView(
-      url: 'http://localhost:5176/fitment-h5/wechat-msg',
+      url: 'http://localhost:5173/fitment-h5/wechat-msg',
       statusBarColor: '00cec9',
       title: '我的',
       hideAppBar: true,
