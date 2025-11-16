@@ -1,13 +1,60 @@
+import 'package:fitment_flutter/pages/hi_webview.dart';
 import 'package:flutter/material.dart';
 import 'package:fitment_flutter/pages/login_page/index.dart';
 import 'package:fitment_flutter/navigator/tab_navigator.dart';
+import 'package:flutter/services.dart';
 
 class NavigatorUtil {
-  // 当前上下文 , 用于在获取不到上下文的时候使用，比如在静态方法中
+  /// 用于在获取不到 context 的时候使用，如在dao中页面跳转使用，需要在 TabNavigator 中赋值
+  /// 如果 TabNavigator 被销毁，_context 将无法使用
   static BuildContext? _context;
+
+  // static BuildContext? _context;
 
   static updateContext(BuildContext context) {
     NavigatorUtil._context = context;
+  }
+
+  /// 返回上一页
+  static pop(BuildContext context) {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(_context!);
+    } else {
+      /// 退出app
+      SystemNavigator.pop();
+    }
+  }
+
+  /// 跳转H5页面
+  static jumpH5(
+      {BuildContext? context,
+      required String url,
+      String? title,
+      bool? hideAppBar,
+      String? statusBarColor}) {
+    BuildContext? safeContext;
+
+    if (url.isEmpty) {
+      return;
+    }
+
+    if (context != null) {
+      safeContext = context;
+    } else if (_context?.mounted ?? false) {
+      safeContext = _context;
+    } else {
+      debugPrint('🚫 跳转H5页面失败，context 为空');
+      return;
+    }
+
+    Navigator.push(
+        safeContext!,
+        MaterialPageRoute(
+            builder: (context) => HiWebView(
+                url: url,
+                title: title,
+                hideAppBar: hideAppBar,
+                statusBarColor: statusBarColor)));
   }
 
   /// 跳转到指定页面

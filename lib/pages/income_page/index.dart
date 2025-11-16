@@ -1,3 +1,4 @@
+import 'package:fitment_flutter/utils/navigator_util.dart';
 import 'package:flutter/material.dart';
 
 /// 收入页面
@@ -12,10 +13,18 @@ class _IncomePageState extends State<IncomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('收入'),
+      body: Center(
+        child: GestureDetector(
+          child: const Text('收入'),
+          onTap: () {
+            NavigatorUtil.jumpH5(
+                context: context,
+                url: 'http://localhost:5176/fitment-h5/',
+                title: '聊天',
+                statusBarColor: '00cec9');
+          },
+        ),
       ),
-      body: const Center(child: Text('收入')),
     );
   }
 }

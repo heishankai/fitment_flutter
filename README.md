@@ -18,7 +18,7 @@
 4. 启动项目：
 
    - 自动选择设备：`flutter run`
-   - 指定设备：`flutter run -d "iPhone 15 Pro"`
+   - 指定设备：`flutter run -d "iPhone 15 Pro"` 
    - 查看可用设备：`flutter devices`
 
 5. 只创建 ios 和 安卓项目：`flutter create --platforms android,ios fitment_flutter`
