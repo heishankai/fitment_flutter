@@ -25,7 +25,7 @@ class _TabNavigatorState extends State<TabNavigator> {
   Widget build(BuildContext context) {
     // 统一初始化屏幕适配
     ScreenHelper.init(context);
-    
+
     return Scaffold(
       body: PageView(
         controller: _controller,

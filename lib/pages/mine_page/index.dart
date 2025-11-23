@@ -8,9 +8,19 @@ class MinePage extends StatefulWidget {
   State<MinePage> createState() => _MinePageState();
 }
 
-class _MinePageState extends State<MinePage> {
+class _MinePageState extends State<MinePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // 必须调用，用于 AutomaticKeepAliveClientMixin
     return const Scaffold(
         body: HiWebView(
       url: 'http://localhost:5173/fitment-h5/mine',
