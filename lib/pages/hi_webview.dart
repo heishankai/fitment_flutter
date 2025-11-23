@@ -23,13 +23,19 @@ class HiWebView extends StatefulWidget {
   /// 禁止我的页面返回按钮
   final bool? backForbid;
 
+  /// 路由变化回调函数
+  /// 当 WebView 的 URL 发生变化时会被调用
+  /// 参数：newUrl - 新的 URL 地址
+  final void Function(String newUrl)? onUrlChanged;
+
   const HiWebView(
       {super.key,
       required this.url,
       this.statusBarColor,
       this.title,
       this.hideAppBar,
-      this.backForbid});
+      this.backForbid,
+      this.onUrlChanged});
 
   @override
   State<HiWebView> createState() => _HiWebViewState();
@@ -45,6 +51,7 @@ class _HiWebViewState extends State<HiWebView> {
   String? url;
   late WebViewController controller;
   bool _isLoading = true; // 加载状态
+  String? _currentUrl; // 当前 URL，用于监听路由变化
 
   @override
   void initState() {
@@ -108,23 +115,34 @@ class _HiWebViewState extends State<HiWebView> {
           onPageStarted: (String url) {
             print('页面加载开始: $url');
 
+            /// 页面加载开始 - 路由变化监听
+            _onUrlChanged(url);
+
             /// 页面加载开始
             if (mounted) {
               setState(() {
                 _isLoading = true;
+                _currentUrl = url;
               });
             }
             _injectUserInfo();
           },
-          onPageFinished: (String url) {
+          onPageFinished: (String url) async {
+            /// 页面加载完成 - 路由变化监听
+            _onUrlChanged(url);
+
             /// 页面加载完成
             if (mounted) {
               setState(() {
                 _isLoading = false;
+                _currentUrl = url;
               });
             }
             _handleBackForbid();
             _injectUserInfo();
+            
+            // 监听 hash 变化（单页应用的路由变化）
+            _setupHashChangeListener();
           },
           onWebResourceError: (WebResourceError error) {
             /// 页面加载错误
@@ -136,6 +154,9 @@ class _HiWebViewState extends State<HiWebView> {
             }
           },
           onNavigationRequest: (NavigationRequest request) async {
+            // 路由变化监听 - 导航请求时立即触发（最快响应）
+            _onUrlChanged(request.url);
+
             // 检查是否需要拦截并返回主页
             if (_isToMain(request.url)) {
               /// 拦截URL，返回flutter页面
@@ -204,6 +225,119 @@ class _HiWebViewState extends State<HiWebView> {
 
     String jsCode = "localStorage.setItem('userInfo', '$escapedJson');";
     await controller.runJavaScript(jsCode);
+  }
+
+  /// 监听路由变化（URL 变化）
+  void _onUrlChanged(String newUrl) {
+    // 如果 URL 发生变化，触发路由变化回调
+    if (_currentUrl != null && _currentUrl != newUrl) {
+      debugPrint('🔄 WebView 路由变化: $_currentUrl -> $newUrl');
+      widget.onUrlChanged?.call(newUrl);
+    } else if (_currentUrl == null) {
+      debugPrint('📍 WebView 初始 URL: $newUrl');
+      // 初始 URL 也触发回调
+      widget.onUrlChanged?.call(newUrl);
+    }
+  }
+
+  /// 设置 hash 变化监听器（用于监听单页应用的路由变化）
+  void _setupHashChangeListener() async {
+    try {
+      // 注入 JavaScript 代码来监听 hash 变化和 history API 变化
+      // 使用更频繁的轮询来快速检测变化
+      String jsCode = '''
+        (function() {
+          var lastUrl = window.location.href;
+          
+          // 监听 hash 变化
+          window.addEventListener('hashchange', function() {
+            var currentUrl = window.location.href;
+            if (lastUrl !== currentUrl) {
+              lastUrl = currentUrl;
+              // 立即触发 URL 检查
+              window.dispatchEvent(new Event('urlchanged'));
+            }
+          });
+          
+          // 监听 popstate 事件（用于 history.pushState/replaceState）
+          window.addEventListener('popstate', function() {
+            var currentUrl = window.location.href;
+            if (lastUrl !== currentUrl) {
+              lastUrl = currentUrl;
+              window.dispatchEvent(new Event('urlchanged'));
+            }
+          });
+          
+          // 重写 pushState 和 replaceState 来监听路由变化
+          var originalPushState = history.pushState;
+          var originalReplaceState = history.replaceState;
+          
+          history.pushState = function() {
+            originalPushState.apply(history, arguments);
+            setTimeout(function() {
+              var currentUrl = window.location.href;
+              if (lastUrl !== currentUrl) {
+                lastUrl = currentUrl;
+                window.dispatchEvent(new Event('urlchanged'));
+              }
+            }, 0);
+          };
+          
+          history.replaceState = function() {
+            originalReplaceState.apply(history, arguments);
+            setTimeout(function() {
+              var currentUrl = window.location.href;
+              if (lastUrl !== currentUrl) {
+                lastUrl = currentUrl;
+                window.dispatchEvent(new Event('urlchanged'));
+              }
+            }, 0);
+          };
+        })();
+      ''';
+      
+      await controller.runJavaScript(jsCode);
+      
+      // 定期检查 URL 变化（更频繁的检查）
+      _startUrlPolling();
+      
+      debugPrint('✅ Hash 变化监听器已设置');
+    } catch (e) {
+      debugPrint('❌ 设置 hash 变化监听器失败: $e');
+    }
+  }
+
+  /// 定期轮询检查 URL 变化（用于监听单页应用的路由变化）
+  void _startUrlPolling() {
+    Future.delayed(const Duration(milliseconds: 50), () async {
+      if (!mounted) return;
+      
+      try {
+        // 通过 JavaScript 获取当前页面的 URL
+        String? currentUrl = await controller.runJavaScriptReturningResult(
+          'window.location.href',
+        ) as String?;
+        
+        // 移除可能的引号
+        if (currentUrl != null) {
+          currentUrl = currentUrl.replaceAll('"', '').replaceAll("'", '');
+          
+          if (currentUrl != _currentUrl) {
+            _onUrlChanged(currentUrl);
+            if (mounted) {
+              setState(() {
+                _currentUrl = currentUrl;
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('❌ 获取当前 URL 失败: $e');
+      }
+      
+      // 继续轮询
+      _startUrlPolling();
+    });
   }
 
   @override
