@@ -1,439 +1,242 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:fitment_flutter/utils/navigator_util.dart';
 import 'package:fitment_flutter/dao/login_dao.dart';
 import 'package:fitment_flutter/components/loading_widget.dart';
-import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
-/// H5容器
+/// H5 容器
+/// 支持：
+/// 1. token 自动注入
+/// 2. SPA 单页应用路由变化监听（轮询方式）
+/// 3. 自定义 AppBar / 隐藏 AppBar
+/// 4. 拦截特定 URL 返回 Flutter 页面
+/// 5. 后退按钮处理
 class HiWebView extends StatefulWidget {
-  /// 网页地址
-  final String? url;
+  final String url; // 初始 URL
+  final String? statusBarColor; // 状态栏颜色
+  final String? title; // AppBar 标题
+  final bool? hideAppBar; // 是否隐藏 AppBar
+  final bool? backForbid; // 是否禁止 H5 返回
+  final void Function(String newUrl)? onUrlChanged; // URL 变化回调
 
-  /// 状态栏颜色
-  final String? statusBarColor;
-
-  /// 标题
-  final String? title;
-
-  /// 是否隐藏AppBar
-  final bool? hideAppBar;
-
-  /// 禁止我的页面返回按钮
-  final bool? backForbid;
-
-  /// 路由变化回调函数
-  /// 当 WebView 的 URL 发生变化时会被调用
-  /// 参数：newUrl - 新的 URL 地址
-  final void Function(String newUrl)? onUrlChanged;
-
-  const HiWebView(
-      {super.key,
-      required this.url,
-      this.statusBarColor,
-      this.title,
-      this.hideAppBar,
-      this.backForbid,
-      this.onUrlChanged});
+  const HiWebView({
+    super.key,
+    required this.url,
+    this.statusBarColor,
+    this.title,
+    this.hideAppBar,
+    this.backForbid,
+    this.onUrlChanged,
+  });
 
   @override
   State<HiWebView> createState() => _HiWebViewState();
 }
 
 class _HiWebViewState extends State<HiWebView> {
-  /// 需要拦截的URL (跳出H5页面，返回flutter页面)
+  late WebViewController _controller;
+  bool _isLoading = true;
+  String? _currentUrl;
+
+  /// 需要拦截的 URL 列表
   final List<String> _catchUrls = [
     'https://www.baidu.com',
     'https://www.zjiangyun.cn',
   ];
 
-  String? url;
-  late WebViewController controller;
-  bool _isLoading = true; // 加载状态
-  String? _currentUrl; // 当前 URL，用于监听路由变化
-
   @override
   void initState() {
     super.initState();
-    url = widget.url;
+    _initWebView();
+  }
 
-    if (url != null) {
-      // Android 模拟器需要使用 10.0.2.2 访问宿主机
-      if (Platform.isAndroid && url!.contains('localhost')) {
-        url = url!.replaceAll('localhost', '10.0.2.2');
-        print('🔄 [Android 模拟器] 将 localhost 转换为 10.0.2.2: $url');
-      }
+  /// 初始化 WebView
+  void _initWebView() {
+    String url = widget.url;
 
-      if (url!.contains('zjiangyun.cn')) {
-        /// http 无法打开 改为https
-        url = url!.replaceAll('http://', 'https://');
-      }
-
-      // 给初始 URL 添加 token 参数
-      url = _addTokenToUrl(url!);
+    // Android 模拟器 localhost 替换为 10.0.2.2
+    if (Platform.isAndroid && url.contains('localhost')) {
+      url = url.replaceAll('localhost', '10.0.2.2');
     }
-    _initWebViewController();
+
+    // 特定域名 http 改为 https
+    if (url.contains('zjiangyun.cn')) {
+      url = url.replaceAll('http://', 'https://');
+    }
+
+    // 添加 token
+    _currentUrl = _addTokenToUrl(url);
+
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: _onPageStarted,
+          onPageFinished: _onPageFinished,
+          onNavigationRequest: _onNavigationRequest,
+        ),
+      )
+      ..loadRequest(Uri.parse(_currentUrl!));
   }
 
   /// 给 URL 添加 token 参数
   String _addTokenToUrl(String urlString) {
     try {
       Uri uri = Uri.parse(urlString);
-      String? token = LoginDao.getToken();
-
-      // 如果已经有 token 参数，就不添加
-      if (uri.queryParameters.containsKey('token') || token == null) {
+      final token = LoginDao.getToken();
+      if (token == null || uri.queryParameters.containsKey('token'))
         return urlString;
-      }
-
-      // 添加 token 参数
-      Map<String, String> queryParams = Map.from(uri.queryParameters);
-      queryParams['token'] = token;
-
-      Uri newUri = uri.replace(queryParameters: queryParams);
+      final newUri = uri
+          .replace(queryParameters: {...uri.queryParameters, 'token': token});
       return newUri.toString();
-    } catch (e) {
-      debugPrint('❌ 添加 token 参数失败: $e');
+    } catch (_) {
       return urlString;
     }
   }
 
-  /// 初始化 WebViewController 实例
-  /// 设置 JavaScript 模式为 unrestricted，允许执行 JavaScript 代码，..表示初始化就执行
-
-  void _initWebViewController() {
-    controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (int progress) {
-            /// 页面加载进度
-            print('WebView is loading (progress : $progress%)');
-          },
-          onPageStarted: (String url) {
-            print('页面加载开始: $url');
-
-            /// 页面加载开始 - 路由变化监听
-            _onUrlChanged(url);
-
-            /// 页面加载开始
-            if (mounted) {
-              setState(() {
-                _isLoading = true;
-                _currentUrl = url;
-              });
-            }
-            _injectUserInfo();
-          },
-          onPageFinished: (String url) async {
-            /// 页面加载完成 - 路由变化监听
-            _onUrlChanged(url);
-
-            /// 页面加载完成
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-                _currentUrl = url;
-              });
-            }
-            _handleBackForbid();
-            _injectUserInfo();
-            
-            // 监听 hash 变化（单页应用的路由变化）
-            _setupHashChangeListener();
-          },
-          onWebResourceError: (WebResourceError error) {
-            /// 页面加载错误
-            print('WebView error: ${error.description}');
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-              });
-            }
-          },
-          onNavigationRequest: (NavigationRequest request) async {
-            // 路由变化监听 - 导航请求时立即触发（最快响应）
-            _onUrlChanged(request.url);
-
-            // 检查是否需要拦截并返回主页
-            if (_isToMain(request.url)) {
-              /// 拦截URL，返回flutter页面
-              NavigatorUtil.pop(context);
-              return NavigationDecision.prevent;
-            }
-
-            // 检查 URL 是否已经有 token 参数
-            String requestUrl = request.url;
-            String? token = LoginDao.getToken();
-
-            if (token != null) {
-              try {
-                Uri uri = Uri.parse(requestUrl);
-                // 如果没有 token 参数，添加 token 并重新加载
-                if (!uri.queryParameters.containsKey('token')) {
-                  String newUrl = _addTokenToUrl(requestUrl);
-                  // 阻止原请求，加载带 token 的新 URL
-                  controller.loadRequest(Uri.parse(newUrl));
-                  return NavigationDecision.prevent;
-                }
-              } catch (e) {
-                debugPrint('❌ 处理导航请求失败: $e');
-              }
-            }
-
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(url!));
+  /// 页面开始加载
+  void _onPageStarted(String url) {
+    _updateUrl(url);
+    _injectUserInfo();
+    setState(() => _isLoading = true);
   }
 
-  /// 判断 H5 URL 是否返回主页
-  bool _isToMain(String url) {
-    bool contain = false;
+  /// 页面加载完成
+  void _onPageFinished(String url) {
+    _updateUrl(url);
+    _injectUserInfo();
+    _startUrlPolling(); // SPA 单页应用路由变化轮询
+    setState(() => _isLoading = false);
+  }
 
-    for (var item in _catchUrls) {
-      if (url.endsWith(item)) {
-        contain = true;
-        break;
-      }
+  /// 拦截导航请求
+  NavigationDecision _onNavigationRequest(NavigationRequest request) {
+    _updateUrl(request.url);
+
+    // 拦截特定 URL 返回 Flutter
+    if (_catchUrls.any((u) => request.url.endsWith(u))) {
+      NavigatorUtil.pop(context);
+      return NavigationDecision.prevent;
     }
 
-    return contain;
-  }
-
-  void _handleBackForbid() {
-    if (widget.backForbid == true) {
-      controller.goBack();
+    // token 注入
+    final token = LoginDao.getToken();
+    if (token != null &&
+        !Uri.parse(request.url).queryParameters.containsKey('token')) {
+      _controller.loadRequest(Uri.parse(_addTokenToUrl(request.url)));
+      return NavigationDecision.prevent;
     }
+
+    return NavigationDecision.navigate;
   }
 
-  /// 将用户登录信息注入到浏览器的 localStorage
-  void _injectUserInfo() async {
-    // 获取用户信息，如果没有则使用空对象
-    Map<String, dynamic> userInfo = LoginDao.getLocalUserInfo() ?? {};
-
-    // 注入用户信息到 localStorage
-    String userInfoJson = jsonEncode(userInfo);
-    // 将 JSON 字符串作为字符串值存储，需要转义单引号和反斜杠
-    String escapedJson =
-        userInfoJson.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-
-    debugPrint('✅ 用户信息已成功注入到 WebView localStorage: $escapedJson');
-
-    String jsCode = "localStorage.setItem('userInfo', '$escapedJson');";
-    await controller.runJavaScript(jsCode);
-  }
-
-  /// 监听路由变化（URL 变化）
-  void _onUrlChanged(String newUrl) {
-    // 如果 URL 发生变化，触发路由变化回调
-    if (_currentUrl != null && _currentUrl != newUrl) {
-      debugPrint('🔄 WebView 路由变化: $_currentUrl -> $newUrl');
+  /// 更新当前 URL 并触发回调
+  void _updateUrl(String newUrl) {
+    if (_currentUrl != newUrl) {
+      _currentUrl = newUrl;
       widget.onUrlChanged?.call(newUrl);
     } else if (_currentUrl == null) {
-      debugPrint('📍 WebView 初始 URL: $newUrl');
-      // 初始 URL 也触发回调
+      _currentUrl = newUrl;
       widget.onUrlChanged?.call(newUrl);
     }
   }
 
-  /// 设置 hash 变化监听器（用于监听单页应用的路由变化）
-  void _setupHashChangeListener() async {
-    try {
-      // 注入 JavaScript 代码来监听 hash 变化和 history API 变化
-      // 使用更频繁的轮询来快速检测变化
-      String jsCode = '''
-        (function() {
-          var lastUrl = window.location.href;
-          
-          // 监听 hash 变化
-          window.addEventListener('hashchange', function() {
-            var currentUrl = window.location.href;
-            if (lastUrl !== currentUrl) {
-              lastUrl = currentUrl;
-              // 立即触发 URL 检查
-              window.dispatchEvent(new Event('urlchanged'));
-            }
-          });
-          
-          // 监听 popstate 事件（用于 history.pushState/replaceState）
-          window.addEventListener('popstate', function() {
-            var currentUrl = window.location.href;
-            if (lastUrl !== currentUrl) {
-              lastUrl = currentUrl;
-              window.dispatchEvent(new Event('urlchanged'));
-            }
-          });
-          
-          // 重写 pushState 和 replaceState 来监听路由变化
-          var originalPushState = history.pushState;
-          var originalReplaceState = history.replaceState;
-          
-          history.pushState = function() {
-            originalPushState.apply(history, arguments);
-            setTimeout(function() {
-              var currentUrl = window.location.href;
-              if (lastUrl !== currentUrl) {
-                lastUrl = currentUrl;
-                window.dispatchEvent(new Event('urlchanged'));
-              }
-            }, 0);
-          };
-          
-          history.replaceState = function() {
-            originalReplaceState.apply(history, arguments);
-            setTimeout(function() {
-              var currentUrl = window.location.href;
-              if (lastUrl !== currentUrl) {
-                lastUrl = currentUrl;
-                window.dispatchEvent(new Event('urlchanged'));
-              }
-            }, 0);
-          };
-        })();
-      ''';
-      
-      await controller.runJavaScript(jsCode);
-      
-      // 定期检查 URL 变化（更频繁的检查）
-      _startUrlPolling();
-      
-      debugPrint('✅ Hash 变化监听器已设置');
-    } catch (e) {
-      debugPrint('❌ 设置 hash 变化监听器失败: $e');
-    }
+  /// 注入用户信息到 localStorage
+  void _injectUserInfo() async {
+    final userInfo = LoginDao.getLocalUserInfo() ?? {};
+    final jsonStr =
+        jsonEncode(userInfo).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+    await _controller
+        .runJavaScript("localStorage.setItem('userInfo', '$jsonStr');");
   }
 
-  /// 定期轮询检查 URL 变化（用于监听单页应用的路由变化）
-  void _startUrlPolling() {
-    Future.delayed(const Duration(milliseconds: 50), () async {
-      if (!mounted) return;
-      
-      try {
-        // 通过 JavaScript 获取当前页面的 URL
-        String? currentUrl = await controller.runJavaScriptReturningResult(
-          'window.location.href',
-        ) as String?;
-        
-        // 移除可能的引号
-        if (currentUrl != null) {
-          currentUrl = currentUrl.replaceAll('"', '').replaceAll("'", '');
-          
-          if (currentUrl != _currentUrl) {
-            _onUrlChanged(currentUrl);
-            if (mounted) {
-              setState(() {
-                _currentUrl = currentUrl;
-              });
-            }
-          }
+  /// SPA 单页应用 URL 轮询监听
+  void _startUrlPolling() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+
+    try {
+      final result = await _controller
+          .runJavaScriptReturningResult('window.location.href') as String?;
+      if (result != null) {
+        final currentUrl = result.replaceAll('"', '').replaceAll("'", '');
+        if (_currentUrl != currentUrl) {
+          _updateUrl(currentUrl);
         }
-      } catch (e) {
-        debugPrint('❌ 获取当前 URL 失败: $e');
       }
-      
-      // 继续轮询
-      _startUrlPolling();
-    });
+    } catch (_) {}
+
+    // 持续轮询
+    _startUrlPolling();
+  }
+
+  /// Android / Flutter 返回处理
+  Future<bool> _onWillPop() async {
+    if (await _controller.canGoBack()) {
+      _controller.goBack();
+      return false;
+    }
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    String statusBarColorStr = widget.statusBarColor ?? 'ffffff';
-    Color backButtonColor;
+    final statusBarColor =
+        Color(int.parse('0xff${widget.statusBarColor ?? 'ffffff'}'));
+    final backButtonColor =
+        widget.statusBarColor == 'ffffff' ? Colors.black : Colors.white;
 
-    if (statusBarColorStr == 'ffffff') {
-      backButtonColor = Colors.black;
-    } else {
-      backButtonColor = Colors.white;
-    }
-
-    /// 处理安卓物理返回键，禁止返回flutter的上一页
-    return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (bool didPop, Object? result) async {
-          if (await controller.canGoBack()) {
-            /// 返回H5的上一页
-            controller.goBack();
-          } else {
-            /// 返回flutter的上一页
-            if (context.mounted) NavigatorUtil.pop(context);
-          }
-        },
-        child: Scaffold(
-            body: Column(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: Column(
           children: [
-            _appBar(
-                Color(int.parse('0xff$statusBarColorStr')), backButtonColor),
+            widget.hideAppBar == true
+                ? Container(
+                    color: statusBarColor,
+                    height: MediaQuery.of(context).padding.top)
+                : _buildAppBar(statusBarColor, backButtonColor),
             Expanded(
               child: LoadingWidget(
                 isLoading: _isLoading,
-                cover: true, // 使用覆盖模式，加载动画覆盖在 WebView 上
-                child: WebViewWidget(controller: controller),
+                cover: true,
+                child: WebViewWidget(controller: _controller),
               ),
             ),
           ],
-        )));
-  }
-
-  Widget _appBar(Color backgroundColor, Color backButtonColor) {
-    /// 获取留海屏顶部的安全间距
-    double top = MediaQuery.of(context).padding.top;
-
-    /// 如果隐藏AppBar，则返回一个容器，高度为留海屏顶部的安全间距
-    if (widget.hideAppBar ?? false) {
-      return Container(
-        color: backgroundColor,
-        height: top,
-      );
-    }
-
-    return Container(
-      color: backgroundColor,
-      padding: EdgeInsets.fromLTRB(0, top, 0, 10),
-      child: FractionallySizedBox(
-          widthFactor: 1, // 宽度占满父容器
-          child: Stack(
-            children: [
-              _backButton(backButtonColor),
-              _title(backButtonColor),
-            ],
-          )),
-    );
-  }
-
-  /// 返回按钮
-  Widget _backButton(Color backButtonColor) {
-    return GestureDetector(
-      onTap: () async {
-        if (await controller.canGoBack()) {
-          /// 返回H5的上一页
-          controller.goBack();
-        } else {
-          /// 返回flutter的上一页
-          if (context.mounted) NavigatorUtil.pop(context);
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(left: 10),
-        child: Icon(
-          Icons.arrow_back,
-          color: backButtonColor,
-          size: 26,
         ),
       ),
     );
   }
 
-  /// 标题
-  Widget _title(Color backButtonColor) {
-    return Center(
-      child: Text(
-        widget.title ?? '',
-        style: TextStyle(color: backButtonColor, fontSize: 20),
+  /// 构建 AppBar
+  Widget _buildAppBar(Color bgColor, Color backColor) {
+    final top = MediaQuery.of(context).padding.top;
+    return Container(
+      color: bgColor,
+      padding: EdgeInsets.fromLTRB(0, top, 0, 10),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 10,
+            child: GestureDetector(
+              onTap: () async {
+                if (await _controller.canGoBack()) {
+                  _controller.goBack();
+                } else if (context.mounted) {
+                  NavigatorUtil.pop(context);
+                }
+              },
+              child: Icon(Icons.arrow_back, color: backColor, size: 26),
+            ),
+          ),
+          Center(
+              child: Text(widget.title ?? '',
+                  style: TextStyle(color: backColor, fontSize: 20))),
+        ],
       ),
     );
   }
