@@ -7,19 +7,13 @@ import 'package:fitment_flutter/dao/login_dao.dart';
 import 'package:fitment_flutter/components/loading_widget.dart';
 
 /// H5 容器
-/// 支持：
-/// 1. token 自动注入
-/// 2. SPA 单页应用路由变化监听（轮询方式）
-/// 3. 自定义 AppBar / 隐藏 AppBar
-/// 4. 拦截特定 URL 返回 Flutter 页面
-/// 5. 后退按钮处理
 class HiWebView extends StatefulWidget {
-  final String url; // 初始 URL
-  final String? statusBarColor; // 状态栏颜色
-  final String? title; // AppBar 标题
-  final bool? hideAppBar; // 是否隐藏 AppBar
-  final bool? backForbid; // 是否禁止 H5 返回
-  final void Function(String newUrl)? onUrlChanged; // URL 变化回调
+  final String url;
+  final String? statusBarColor;
+  final String? title;
+  final bool? hideAppBar;
+  final bool? backForbid;
+  final void Function(String newUrl)? onUrlChanged;
 
   const HiWebView({
     super.key,
@@ -40,9 +34,8 @@ class _HiWebViewState extends State<HiWebView> {
   bool _isLoading = true;
   String? _currentUrl;
 
-  /// 需要拦截的 URL 列表
+  /// 需要拦截的 URL
   final List<String> _catchUrls = [
-    'https://www.baidu.com',
     'https://www.zjiangyun.cn',
   ];
 
@@ -56,22 +49,28 @@ class _HiWebViewState extends State<HiWebView> {
   void _initWebView() {
     String url = widget.url;
 
-    // Android 模拟器 localhost 替换为 10.0.2.2
+    /// Android 模拟器 localhost 自动替换为 10.0.2.2
     if (Platform.isAndroid && url.contains('localhost')) {
       url = url.replaceAll('localhost', '10.0.2.2');
     }
 
-    // 特定域名 http 改为 https
+    /// http → https
     if (url.contains('zjiangyun.cn')) {
       url = url.replaceAll('http://', 'https://');
     }
 
-    // 添加 token
-    _currentUrl = _addTokenToUrl(url);
+    /// 添加 token
+    _currentUrl = _addToken(url);
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
+      ..addJavaScriptChannel(
+        'FlutterBridge',
+        onMessageReceived: (message) {
+          _handleJSMessage(message.message);
+        },
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: _onPageStarted,
@@ -82,25 +81,26 @@ class _HiWebViewState extends State<HiWebView> {
       ..loadRequest(Uri.parse(_currentUrl!));
   }
 
-  /// 给 URL 添加 token 参数
-  String _addTokenToUrl(String urlString) {
+  /// 添加 token 参数
+  String _addToken(String urlStr) {
     try {
-      Uri uri = Uri.parse(urlString);
-      final token = LoginDao.getToken();
-      if (token == null || uri.queryParameters.containsKey('token'))
-        return urlString;
-      final newUri = uri
-          .replace(queryParameters: {...uri.queryParameters, 'token': token});
-      return newUri.toString();
+      Uri uri = Uri.parse(urlStr);
+      String? token = LoginDao.getToken();
+
+      if (token == null || uri.queryParameters.containsKey('token')) {
+        return urlStr;
+      }
+
+      return uri.replace(
+          queryParameters: {...uri.queryParameters, 'token': token}).toString();
     } catch (_) {
-      return urlString;
+      return urlStr;
     }
   }
 
   /// 页面开始加载
   void _onPageStarted(String url) {
     _updateUrl(url);
-    _injectUserInfo();
     setState(() => _isLoading = true);
   }
 
@@ -108,7 +108,8 @@ class _HiWebViewState extends State<HiWebView> {
   void _onPageFinished(String url) {
     _updateUrl(url);
     _injectUserInfo();
-    _startUrlPolling(); // SPA 单页应用路由变化轮询
+    _injectFlutterLogoutBridge();
+    _startUrlPolling(); // 单页应用 URL 变化监听
     setState(() => _isLoading = false);
   }
 
@@ -116,29 +117,26 @@ class _HiWebViewState extends State<HiWebView> {
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
     _updateUrl(request.url);
 
-    // 拦截特定 URL 返回 Flutter
+    /// 命中需要拦截的 URL → 返回 Flutter
     if (_catchUrls.any((u) => request.url.endsWith(u))) {
       NavigatorUtil.pop(context);
       return NavigationDecision.prevent;
     }
 
-    // token 注入
+    /// token 自动补齐
     final token = LoginDao.getToken();
     if (token != null &&
         !Uri.parse(request.url).queryParameters.containsKey('token')) {
-      _controller.loadRequest(Uri.parse(_addTokenToUrl(request.url)));
+      _controller.loadRequest(Uri.parse(_addToken(request.url)));
       return NavigationDecision.prevent;
     }
 
     return NavigationDecision.navigate;
   }
 
-  /// 更新当前 URL 并触发回调
+  /// 更新 URL + 回调
   void _updateUrl(String newUrl) {
     if (_currentUrl != newUrl) {
-      _currentUrl = newUrl;
-      widget.onUrlChanged?.call(newUrl);
-    } else if (_currentUrl == null) {
       _currentUrl = newUrl;
       widget.onUrlChanged?.call(newUrl);
     }
@@ -146,59 +144,96 @@ class _HiWebViewState extends State<HiWebView> {
 
   /// 注入用户信息到 localStorage
   void _injectUserInfo() async {
-    final userInfo = LoginDao.getLocalUserInfo() ?? {};
-    final jsonStr =
-        jsonEncode(userInfo).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-    await _controller
-        .runJavaScript("localStorage.setItem('userInfo', '$jsonStr');");
+    try {
+      final userInfo = LoginDao.getLocalUserInfo() ?? {};
+      final jsonStr =
+          jsonEncode(userInfo).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+      await _controller.runJavaScript(
+        "localStorage.setItem('userInfo', '$jsonStr');",
+      );
+    } catch (e) {
+      debugPrint("❌ 注入用户信息失败: $e");
+    }
   }
 
-  /// SPA 单页应用 URL 轮询监听
+  /// JS 调用 Flutter 的消息处理
+  void _handleJSMessage(String msg) {
+    try {
+      final data = jsonDecode(msg);
+      if (data['action'] == 'logout') {
+        _handleLogout();
+      }
+    } catch (e) {
+      debugPrint("❌ 无效的 H5 消息: $msg");
+    }
+  }
+
+  /// 退出登录
+  void _handleLogout() {
+    LoginDao.logout();
+    if (context.mounted) NavigatorUtil.goToLogin();
+  }
+
+  /// 注入 JS → 提供 "window.AppLogout()" 给 H5 调用
+  void _injectFlutterLogoutBridge() async {
+    const js = '''
+      window.AppLogout = function() {
+        FlutterBridge.postMessage(JSON.stringify({ action: 'logout' }));
+      };
+    ''';
+
+    try {
+      await _controller.runJavaScript(js);
+      debugPrint("✅ 注入 AppLogout 成功");
+    } catch (e) {
+      debugPrint("❌ 注入 AppLogout 失败: $e");
+    }
+  }
+
+  /// SPA URL 轮询监听
   void _startUrlPolling() async {
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 120));
     if (!mounted) return;
 
     try {
-      final result = await _controller
-          .runJavaScriptReturningResult('window.location.href') as String?;
-      if (result != null) {
-        final currentUrl = result.replaceAll('"', '').replaceAll("'", '');
-        if (_currentUrl != currentUrl) {
-          _updateUrl(currentUrl);
-        }
+      String result = await _controller
+          .runJavaScriptReturningResult("window.location.href") as String;
+      result = result.replaceAll('"', '');
+
+      if (_currentUrl != result) {
+        _updateUrl(result);
       }
     } catch (_) {}
 
-    // 持续轮询
     _startUrlPolling();
-  }
-
-  /// Android / Flutter 返回处理
-  Future<bool> _onWillPop() async {
-    if (await _controller.canGoBack()) {
-      _controller.goBack();
-      return false;
-    }
-    return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusBarColor =
-        Color(int.parse('0xff${widget.statusBarColor ?? 'ffffff'}'));
-    final backButtonColor =
+    final statusColor =
+        Color(int.parse("0xff${widget.statusBarColor ?? 'ffffff'}"));
+    final backColor =
         widget.statusBarColor == 'ffffff' ? Colors.black : Colors.white;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _controller.canGoBack()) {
+          _controller.goBack();
+        } else if (context.mounted) {
+          NavigatorUtil.pop(context);
+        }
+      },
       child: Scaffold(
         body: Column(
           children: [
             widget.hideAppBar == true
                 ? Container(
-                    color: statusBarColor,
-                    height: MediaQuery.of(context).padding.top)
-                : _buildAppBar(statusBarColor, backButtonColor),
+                    color: statusColor,
+                    height: MediaQuery.of(context).padding.top,
+                  )
+                : _buildAppBar(statusColor, backColor),
             Expanded(
               child: LoadingWidget(
                 isLoading: _isLoading,
@@ -215,6 +250,7 @@ class _HiWebViewState extends State<HiWebView> {
   /// 构建 AppBar
   Widget _buildAppBar(Color bgColor, Color backColor) {
     final top = MediaQuery.of(context).padding.top;
+
     return Container(
       color: bgColor,
       padding: EdgeInsets.fromLTRB(0, top, 0, 10),
@@ -234,8 +270,11 @@ class _HiWebViewState extends State<HiWebView> {
             ),
           ),
           Center(
-              child: Text(widget.title ?? '',
-                  style: TextStyle(color: backColor, fontSize: 20))),
+            child: Text(
+              widget.title ?? '',
+              style: TextStyle(color: backColor, fontSize: 20),
+            ),
+          )
         ],
       ),
     );
