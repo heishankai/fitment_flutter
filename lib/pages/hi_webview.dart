@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:fitment_flutter/utils/navigator_util.dart';
 import 'package:fitment_flutter/dao/login_dao.dart';
 import 'package:fitment_flutter/components/loading_widget.dart';
+import 'package:fitment_flutter/pages/login_page/index.dart';
 
 /// H5 容器
 class HiWebView extends StatefulWidget {
@@ -63,7 +64,8 @@ class _HiWebViewState extends State<HiWebView> {
     _currentUrl = _addToken(url);
 
     _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setJavaScriptMode(
+          JavaScriptMode.unrestricted) // 启用 JavaScript，支持地理位置 API
       ..setBackgroundColor(const Color(0x00000000))
       ..addJavaScriptChannel(
         'FlutterBridge',
@@ -76,6 +78,9 @@ class _HiWebViewState extends State<HiWebView> {
           onPageStarted: _onPageStarted,
           onPageFinished: _onPageFinished,
           onNavigationRequest: _onNavigationRequest,
+          // 注意：地理位置权限处理由 webview_flutter 插件自动处理
+          // 权限已在 AndroidManifest.xml 和 Info.plist 中声明
+          // 当 H5 页面调用 navigator.geolocation API 时，系统会自动弹出权限请求对话框
         ),
       )
       ..loadRequest(Uri.parse(_currentUrl!));
@@ -107,7 +112,6 @@ class _HiWebViewState extends State<HiWebView> {
   /// 页面加载完成
   void _onPageFinished(String url) {
     _updateUrl(url);
-    _injectUserInfo();
     _injectFlutterLogoutBridge();
     _startUrlPolling(); // 单页应用 URL 变化监听
     setState(() => _isLoading = false);
@@ -142,36 +146,44 @@ class _HiWebViewState extends State<HiWebView> {
     }
   }
 
-  /// 注入用户信息到 localStorage
-  void _injectUserInfo() async {
-    try {
-      final userInfo = LoginDao.getLocalUserInfo() ?? {};
-      final jsonStr =
-          jsonEncode(userInfo).replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-      await _controller.runJavaScript(
-        "localStorage.setItem('userInfo', '$jsonStr');",
-      );
-    } catch (e) {
-      debugPrint("❌ 注入用户信息失败: $e");
-    }
-  }
-
   /// JS 调用 Flutter 的消息处理
   void _handleJSMessage(String msg) {
     try {
-      final data = jsonDecode(msg);
-      if (data['action'] == 'logout') {
+      debugPrint("📨 收到 H5 消息: $msg");
+      // 尝试解析 JSON
+      dynamic data;
+      if (msg.startsWith('{') || msg.startsWith('[')) {
+        // 看起来是 JSON 字符串，直接解析
+        data = jsonDecode(msg);
+      } else {
+        // 可能已经被解析过了，或者是其他格式
+        debugPrint("⚠️ 消息格式不是 JSON，尝试直接处理");
+        return;
+      }
+      
+      if (data is Map && data['action'] == 'logout') {
+        debugPrint("✅ 处理退出登录请求");
         _handleLogout();
+      } else {
+        debugPrint("⚠️ 未知的 action: ${data['action']}");
       }
     } catch (e) {
-      debugPrint("❌ 无效的 H5 消息: $msg");
+      debugPrint("❌ 解析 H5 消息失败: $e");
+      debugPrint("   消息内容: $msg");
+      debugPrint("   消息类型: ${msg.runtimeType}");
     }
   }
 
   /// 退出登录
   void _handleLogout() {
     LoginDao.logout();
-    if (context.mounted) NavigatorUtil.goToLogin();
+    if (context.mounted) {
+      // 使用当前 context 跳转到登录页
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+    }
   }
 
   /// 注入 JS → 提供 "window.AppLogout()" 给 H5 调用

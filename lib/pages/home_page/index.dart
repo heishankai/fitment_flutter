@@ -1,10 +1,15 @@
+import 'package:fitment_flutter/pages/hi_webview.dart';
+import 'package:fitment_flutter/config/h5_config.dart';
 import 'package:flutter/material.dart';
-import 'package:fitment_flutter/dao/login_dao.dart';
-import 'package:fitment_flutter/utils/navigator_util.dart';
 
-/// 首页
+/// 消息页面
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  /// 路由变化回调函数
+  /// 当 WebView 的 URL 发生变化时会被调用
+  /// 参数：newUrl - 新的 URL 地址
+  final void Function(String newUrl)? onUrlChanged;
+
+  const HomePage({super.key, this.onUrlChanged});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -13,53 +18,28 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with AutomaticKeepAliveClientMixin {
   @override
-  Widget build(BuildContext context) {
-    super.build(context); // 必须调用，用于 AutomaticKeepAliveClientMixin
-    NavigatorUtil.updateContext(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('首页'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          _loginOutButton(),
-        ],
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '登录成功！',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _loginOutButton() {
-    return ElevatedButton(
-      onPressed: () {
-        LoginDao.logout();
-        NavigatorUtil.goToLogin();
-      },
-      child: const Text('退出登录'),
-    );
-  }
-
-  /// 保持页面不卸载，不会重新加载数据
   bool get wantKeepAlive => true;
 
   @override
   void dispose() {
-    // 必须调用 super.dispose() 来释放 mixin 中的资源
     super.dispose();
+  }
+
+  /// 监听 WebView 路由变化
+  void _onUrlChanged(String newUrl) {
+    // 立即通知外部路由变化，不使用延迟
+    widget.onUrlChanged?.call(newUrl);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Scaffold(
+        body: HiWebView(
+      url: H5Config.getH5Url('/fitment-h5/home'),
+      statusBarColor: '00cec9',
+      hideAppBar: true,
+      onUrlChanged: _onUrlChanged, // 添加路由变化监听
+    ));
   }
 }

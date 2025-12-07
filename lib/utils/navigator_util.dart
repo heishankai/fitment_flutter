@@ -18,7 +18,7 @@ class NavigatorUtil {
   /// 返回上一页
   static pop(BuildContext context) {
     if (Navigator.canPop(context)) {
-      Navigator.pop(_context!);
+      Navigator.pop(context);
     } else {
       /// 退出app
       SystemNavigator.pop();
@@ -72,6 +72,10 @@ class NavigatorUtil {
   /// 跳转到登录页
   static goToLogin() {
     /// 跳转到登录页并不让返回
+    if (_context == null || !_context!.mounted) {
+      debugPrint('🚫 跳转到登录页失败，context 为空或已销毁');
+      return;
+    }
     Navigator.pushReplacement(
         _context!, MaterialPageRoute(builder: (context) => const LoginPage()));
   }

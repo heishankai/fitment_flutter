@@ -1,4 +1,5 @@
 import 'package:fitment_flutter/pages/hi_webview.dart';
+import 'package:fitment_flutter/config/h5_config.dart';
 import 'package:flutter/material.dart';
 
 /// 消息页面
@@ -35,7 +36,7 @@ class _MessagePageState extends State<MessagePage>
     super.build(context);
     return Scaffold(
         body: HiWebView(
-      url: 'http://localhost:5173/fitment-h5/chat/craftsman',
+      url: H5Config.getH5Url('/fitment-h5/chat/craftsman'),
       statusBarColor: '00cec9',
       hideAppBar: true,
       onUrlChanged: _onUrlChanged, // 添加路由变化监听
