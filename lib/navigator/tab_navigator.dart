@@ -22,29 +22,49 @@ class _TabNavigatorState extends State<TabNavigator> {
   int _currentIndex = 0;
   bool _showBottomNav = true; // 是否显示底部导航栏
 
-  /// 检查 URL 是否是主页面路由（mine 或 message）
+  /// 检查 URL 是否是主页面路由（四个 tab 页面的主路径）
   /// 只允许主页面本身，不包括子路径
   bool _isMainPage(String url) {
     try {
       Uri uri = Uri.parse(url);
       String path = uri.path;
-      // 检查是否是 mine 主页面
-      bool isMineMain = path == '/fitment-h5/mine' || path == '/mine';
-      // 检查是否是 message 主页面
+      
+      // 检查是否是四个 tab 页面的主路径
+      bool isHomeMain = path == '/fitment-h5/home' || path == '/home';
+      bool isIncomeMain = path == '/fitment-h5/wallet' || path == '/wallet';
       bool isMessageMain = path == '/fitment-h5/chat/craftsman' || 
                           path == '/chat/craftsman';
-      return isMineMain || isMessageMain;
+      bool isMineMain = path == '/fitment-h5/mine' || path == '/mine';
+      
+      return isHomeMain || isIncomeMain || isMessageMain || isMineMain;
     } catch (e) {
       return false;
     }
   }
 
+  /// 监听 HomePage 的路由变化
+  void _onHomePageUrlChanged(String newUrl) {
+    bool shouldShow = _isMainPage(newUrl);
+    if (_showBottomNav != shouldShow && mounted) {
+      setState(() {
+        _showBottomNav = shouldShow;
+      });
+    }
+  }
+
+  /// 监听 IncomePage 的路由变化
+  void _onIncomePageUrlChanged(String newUrl) {
+    bool shouldShow = _isMainPage(newUrl);
+    if (_showBottomNav != shouldShow && mounted) {
+      setState(() {
+        _showBottomNav = shouldShow;
+      });
+    }
+  }
+
   /// 监听 MinePage 的路由变化
   void _onMinePageUrlChanged(String newUrl) {
-    // 如果是主页面，显示底部导航栏；否则隐藏
     bool shouldShow = _isMainPage(newUrl);
-    
-    // 立即更新状态，不使用延迟
     if (_showBottomNav != shouldShow && mounted) {
       setState(() {
         _showBottomNav = shouldShow;
@@ -54,10 +74,7 @@ class _TabNavigatorState extends State<TabNavigator> {
 
   /// 监听 MessagePage 的路由变化
   void _onMessagePageUrlChanged(String newUrl) {
-    // 如果是主页面，显示底部导航栏；否则隐藏
     bool shouldShow = _isMainPage(newUrl);
-    
-    // 立即更新状态，不使用延迟
     if (_showBottomNav != shouldShow && mounted) {
       setState(() {
         _showBottomNav = shouldShow;
@@ -75,8 +92,12 @@ class _TabNavigatorState extends State<TabNavigator> {
         controller: _controller,
         physics: const NeverScrollableScrollPhysics(), // 禁止左右滑动切换页面
         children: [
-          const HomePage(),
-          const IncomePage(),
+          HomePage(
+            onUrlChanged: _onHomePageUrlChanged, // 监听路由变化
+          ),
+          IncomePage(
+            onUrlChanged: _onIncomePageUrlChanged, // 监听路由变化
+          ),
           MessagePage(
             onUrlChanged: _onMessagePageUrlChanged, // 监听路由变化
           ),

@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: '叮当师傅',
       // 配置应用主题，使用 #00cec9 作为主色调，启用 Material 3 设计
       theme: ThemeData(
         colorScheme: const ColorScheme.light(
