@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fitment_flutter/theme/app_colors.dart';
 import 'package:flutter/services.dart';
 
 /// 输入框，自定义widget
@@ -56,7 +57,7 @@ class InputWidget extends StatelessWidget {
       maxLength: maxLength,
       inputFormatters: inputFormatters,
       textAlign: textAlign,
-      cursorColor: const Color(0xFF00CEC9), // 光标颜色使用主题色
+      cursorColor: AppColors.primary,
       // 输入框文字颜色 大小 字体
       style: const TextStyle(
           color: Colors.black87, fontSize: 18, fontWeight: FontWeight.w400),

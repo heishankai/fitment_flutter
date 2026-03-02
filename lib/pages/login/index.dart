@@ -1,6 +1,6 @@
-import 'package:fitment_flutter/components/button_widget.dart';
 import 'package:fitment_flutter/dao/login_dao.dart';
 import 'package:flutter/material.dart';
+import 'package:fitment_flutter/theme/app_colors.dart';
 import 'package:fitment_flutter/utils/view_util.dart';
 import 'package:fitment_flutter/components/input_widget.dart';
 import 'dart:async';
@@ -16,18 +16,21 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool loginDisabled = false;
+  bool _isLoadingVerifyCode = false; // 获取验证码加载状态
   String? phone;
   String? verifyCode;
   int _countdown = 0;
   Timer? _timer;
   final FocusNode _verifyCodeFocusNode = FocusNode();
+  final FocusNode _phoneFocusNode = FocusNode();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _verifyCodeController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        resizeToAvoidBottomInset: false, // 避免内容被键盘遮挡
+        resizeToAvoidBottomInset: false, // 输入框获焦时页面不上移
         body: Stack(
           children: [
             ..._background(),
@@ -46,8 +49,8 @@ class _LoginPageState extends State<LoginPage> {
               end: Alignment.topRight,
               stops: [0.0, 1.0],
               colors: [
-                Color(0xFF00CEC9), // #00cec9
-                Color(0xFF00B4D8), // #00b4d8
+                AppColors.primary,
+                AppColors.primaryGradientEnd,
               ],
             ),
           ),
@@ -63,6 +66,7 @@ class _LoginPageState extends State<LoginPage> {
       top: 0,
       bottom: 0,
       child: ListView(
+        controller: _scrollController,
         children: [
           hiSpace(height: 100),
           const Text('欢迎登录叮当师傅',
@@ -78,6 +82,7 @@ class _LoginPageState extends State<LoginPage> {
             hint: '请输入手机号码',
             maxLength: 11,
             controller: _phoneController,
+            focusNode: _phoneFocusNode,
             keyboardType: TextInputType.phone,
             onChanged: (value) {
               phone = value.trim(); // 去除空格
@@ -105,12 +110,62 @@ class _LoginPageState extends State<LoginPage> {
             },
           ),
           hiSpace(height: 50),
-          ButtonWidget(
-            title: _countdown > 0 ? '$_countdown秒后重新获取' : '获取验证码',
-            onPressed: () => _onGetVerifyCode(),
-            enable: _countdown == 0,
-          ),
+          _buildVerifyCodeButton(),
         ],
+      ),
+    );
+  }
+
+  /// 构建获取验证码按钮
+  Widget _buildVerifyCodeButton() {
+    final bool isEnabled = _countdown == 0 && !_isLoadingVerifyCode;
+    
+    return GestureDetector(
+      onTap: isEnabled ? _onGetVerifyCode : null,
+      child: Container(
+        height: 60,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: isEnabled
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: [0.0, 1.0],
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryGradientEnd,
+                  ],
+                )
+              : null,
+          color: isEnabled ? null : AppColors.textDisable,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: isEnabled
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: _isLoadingVerifyCode
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                _countdown > 0 ? '$_countdown秒后重新获取' : '获取验证码',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: isEnabled ? AppColors.textInverse : AppColors.textGrey,
+                ),
+              ),
       ),
     );
   }
@@ -130,7 +185,16 @@ class _LoginPageState extends State<LoginPage> {
     // 更新 phone 变量
     phone = phoneValue;
 
-    if (_countdown != 0) return;
+    if (_countdown != 0 || _isLoadingVerifyCode) return;
+
+    // 使用微任务立即更新UI，提供最快的视觉反馈
+    Future.microtask(() {
+      if (mounted) {
+        setState(() {
+          _isLoadingVerifyCode = true;
+        });
+      }
+    });
 
     // 调用 API 获取验证码
     try {
@@ -139,19 +203,34 @@ class _LoginPageState extends State<LoginPage> {
       if (result['success'] == true) {
         // 成功获取验证码，开始倒计时
         _startCountdown();
-        showToast(context, result['message'] ?? '验证码发送成功');
-        // 让验证码输入框获取焦点
-        Future.delayed(const Duration(milliseconds: 300), () {
-          _verifyCodeFocusNode.requestFocus();
-        });
+        if (mounted) {
+          showToast(context, result['message'] ?? '验证码发送成功');
+          // 让验证码输入框获取焦点
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              _verifyCodeFocusNode.requestFocus();
+            }
+          });
+        }
       } else {
         // 获取验证码失败
-        String errorMessage = result['message'] ?? '获取验证码失败，请稍后重试';
-        showToast(context, errorMessage);
+        if (mounted) {
+          String errorMessage = result['message'] ?? '获取验证码失败，请稍后重试';
+          showToast(context, errorMessage);
+        }
       }
     } catch (e) {
       print('获取验证码异常: $e');
-      showToast(context, '获取验证码失败，请稍后重试');
+      if (mounted) {
+        showToast(context, '获取验证码失败，请稍后重试');
+      }
+    } finally {
+      // 无论成功还是失败，都要重置加载状态
+      if (mounted) {
+        setState(() {
+          _isLoadingVerifyCode = false;
+        });
+      }
     }
   }
 
@@ -243,11 +322,18 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _phoneController.dispose();
     _verifyCodeController.dispose();
+    _phoneFocusNode.dispose();
     _verifyCodeFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }

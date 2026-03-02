@@ -1,7 +1,7 @@
-import 'package:fitment_flutter/pages/hi_webview.dart';
+import 'package:fitment_flutter/pages/webview.dart';
 import 'package:flutter/material.dart';
-import 'package:fitment_flutter/pages/login_page/index.dart';
-import 'package:fitment_flutter/navigator/tab_navigator.dart';
+import 'package:fitment_flutter/pages/login/index.dart';
+import 'package:fitment_flutter/components/tab_navigator.dart';
 import 'package:flutter/services.dart';
 
 class NavigatorUtil {
@@ -25,17 +25,18 @@ class NavigatorUtil {
     }
   }
 
-  /// 跳转H5页面
-  static jumpH5(
-      {BuildContext? context,
-      required String url,
-      String? title,
-      bool? hideAppBar,
-      String? statusBarColor}) {
+  /// 跳转H5页面，返回 Future 便于在页面返回后执行回调
+  static Future<T?> jumpH5<T>({
+    BuildContext? context,
+    required String url,
+    String? title,
+    bool? hideAppBar,
+    String? statusBarColor,
+  }) async {
     BuildContext? safeContext;
 
     if (url.isEmpty) {
-      return;
+      return null as T?;
     }
 
     if (context != null) {
@@ -44,17 +45,20 @@ class NavigatorUtil {
       safeContext = _context;
     } else {
       debugPrint('🚫 跳转H5页面失败，context 为空');
-      return;
+      return null as T?;
     }
 
-    Navigator.push(
-        safeContext!,
-        MaterialPageRoute(
-            builder: (context) => HiWebView(
-                url: url,
-                title: title,
-                hideAppBar: hideAppBar,
-                statusBarColor: statusBarColor)));
+    return Navigator.push<T>(
+      safeContext!,
+      MaterialPageRoute(
+        builder: (context) => HiWebView(
+          url: url,
+          title: title,
+          hideAppBar: hideAppBar ?? false,
+          statusBarColor: statusBarColor,
+        ),
+      ),
+    );
   }
 
   /// 跳转到指定页面

@@ -6,9 +6,9 @@ class H5Config {
   // 开发环境 H5 地址
   static String get _devBaseUrl {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:5173';  // Android 模拟器访问宿主机的特殊 IP
+      return 'http://10.0.2.2:5173'; // Android 模拟器访问宿主机的特殊 IP
     }
-    return 'http://localhost:5173';  // iOS 模拟器或真机可以使用 localhost
+    return 'http://127.0.0.1:5173'; // iOS 模拟器需要使用 127.0.0.1
   }
 
   // 生产环境 H5 地址
@@ -19,7 +19,7 @@ class H5Config {
   static String getH5Url(String path) {
     String url;
     if (kDebugMode) {
-      // 开发环境：http://localhost:5173/fitment-h5/home
+      // 开发环境：http://127.0.0.1:5173/fitment-h5/home (iOS) 或 http://10.0.2.2:5173/fitment-h5/home (Android)
       url = '$_devBaseUrl$path';
       debugPrint('🔧 [开发环境] H5 地址: $url');
     } else {
@@ -30,4 +30,3 @@ class H5Config {
     return url;
   }
 }
-

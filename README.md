@@ -5,7 +5,6 @@
 1. 创建工程： flutter create domo
 
 2. 启动 ios 模拟器：
-
    - iOS 17.0: `xcrun simctl boot 0237DD1A-46FD-4BB7-B09E-D4518A8C1779 && open -a Simulator`
    - iOS 17.5: `xcrun simctl boot C90659F2-8600-4C5E-AA3A-038DF92EA13B && open -a Simulator`
    - 或者使用设备名称（如果唯一）: `xcrun simctl boot "iPhone 15 Pro" && open -a Simulator`
@@ -16,12 +15,29 @@
 - 前台运行：$ANDROID_HOME/emulator/emulator -avd Pixel_9_Pro
 
 4. 启动项目：
-
    - 自动选择设备：`flutter run`
-   - 指定设备：`flutter run -d "iPhone 17 Pro"` 
+   - 指定设备：`flutter run -d "iPhone 17 Pro"`
    - 查看可用设备：`flutter devices`
 
 5. 只创建 ios 和 安卓项目：`flutter create --platforms android,ios fitment_flutter`
+
+## 后台订单通知说明
+
+**现象**：App 切到后台后，新订单来了没有通知、没有震动，Socket 也不生效。
+
+**原因**：iOS/Android 为省电，应用进入后台后会**暂停网络连接**（Socket 被系统挂起），应用代码几乎不执行，因此：
+- Socket 收不到 `new-order` 事件
+- `NewOrderNotification` 不会被调用
+- 震动和本地通知都不会触发
+
+**当前实现**：
+- 前台：Socket 正常，新订单会触发震动 + 本地通知
+- 从后台切回前台：会自动重连 Socket，并刷新订单列表
+
+**如需后台也能收到新订单通知**，需要接入 **服务端推送（FCM/APNs）**：
+1. 集成 `firebase_messaging`，获取设备 FCM Token 并上报给后端
+2. 后端在有新订单时，通过 FCM/APNs 发送推送
+3. 系统会在后台/应用未运行时也能把通知推给用户
 
 ## 故障排除
 
@@ -65,25 +81,23 @@
 ### 使用 Flutter 命令行打包
 
 1. **构建 Android Release APK**：
+
    ```bash
    flutter build apk --release
    ```
+
    构建完成后，APK 文件会生成在 `build/app/outputs/flutter-apk/app-release.apk`
 
-2. **构建 Android App Bundle (AAB，用于 Google Play 发布)**：
-   ```bash
-   flutter build appbundle --release
-   ```
-   构建完成后，AAB 文件会生成在 `build/app/outputs/bundle/release/app-release.aab`
+2. **构建分架构的 APK（减小文件大小）**：
 
-3. **构建分架构的 APK（减小文件大小）**：
    ```bash
    # 构建 ARM64 版本（推荐，兼容大部分设备）
    flutter build apk --release --target-platform android-arm64
-   
+
    # 构建所有架构版本
    flutter build apk --release --split-per-abi
    ```
+
    分架构版本会生成在 `build/app/outputs/flutter-apk/` 目录下：
    - `app-armeabi-v7a-release.apk` (32位 ARM)
    - `app-arm64-v8a-release.apk` (64位 ARM，推荐)
@@ -92,6 +106,7 @@
 ### 安装 APK 到设备
 
 1. **通过 USB 连接安装**：
+
    ```bash
    # 连接 Android 设备后
    flutter install
@@ -121,9 +136,11 @@
    - 在 Android Studio 中：**Tools > SDK Manager > SDK Tools**，勾选 **NDK**
 
 2. **构建失败 - 许可证未接受**：
+
    ```bash
    flutter doctor --android-licenses
    ```
+
    按提示接受所有许可证
 
 3. **APK 文件过大**：
@@ -139,26 +156,33 @@
 ### 使用 Flutter 命令行打包
 
 1. **构建 iOS Release 版本**：
+
    ```bash
    flutter build ios --release
    ```
+
    构建完成后，应用会生成在 `build/ios/iphoneos/Runner.app`
 
 2. **构建 IPA 文件**：
-   
+
    **开发版本（推荐，用于真机测试）**：
+
    ```bash
    flutter build ipa --export-method development
    ```
+
    构建完成后，IPA 文件会生成在 `build/ios/ipa/`，可以直接安装到已注册的设备上
-   
+
    **App Store 版本（需要 Distribution 证书）**：
+
    ```bash
    flutter build ipa
    ```
+
    注意：需要有效的 Apple Developer 账号和 Distribution 证书
-   
+
    **Ad-Hoc 版本（用于内测分发）**：
+
    ```bash
    flutter build ipa --export-method ad-hoc
    ```
@@ -211,9 +235,11 @@
 如果你有 `.xcarchive` 文件（位于 `build/ios/archive/Runner.xcarchive`）：
 
 1. **打开 Archive**：
+
    ```bash
    open build/ios/archive/Runner.xcarchive
    ```
+
    这会打开 Xcode Organizer 窗口
 
 2. **导出并安装**：
@@ -232,17 +258,21 @@
 ### 在 Xcode 中连接手机运行（重新编译）
 
 #### 步骤 1：打开 Xcode 项目
+
 ```bash
 open ios/Runner.xcworkspace
 ```
+
 **注意**：必须打开 `.xcworkspace` 文件，而不是 `.xcodeproj` 文件
 
 #### 步骤 2：连接 iPhone 设备
+
 1. 使用 USB 数据线将 iPhone 连接到 Mac
 2. 在 iPhone 上点击"信任此电脑"（如果首次连接）
 3. 在 Xcode 顶部工具栏的设备选择器中，应该能看到你的 iPhone
 
 #### 步骤 3：配置签名（如果需要）
+
 1. 在 Xcode 左侧项目导航器中，点击 **Runner** 项目（最顶部的蓝色图标）
 2. 选择 **Runner** target
 3. 点击 **Signing & Capabilities** 标签
@@ -251,6 +281,7 @@ open ios/Runner.xcworkspace
 6. 如果出现错误，Xcode 会自动创建或更新 Provisioning Profile
 
 #### 步骤 4：选择设备和运行
+
 1. 在 Xcode 顶部工具栏，点击设备选择器（显示 "Any iOS Device" 或模拟器名称的地方）
 2. 选择你连接的 iPhone 设备
 3. 点击左侧的 **运行按钮**（▶️）或按快捷键 `Cmd + R`
@@ -260,6 +291,7 @@ open ios/Runner.xcworkspace
    - 返回应用，重新打开
 
 #### 步骤 5：查看构建日志
+
 - 如果构建失败，查看 Xcode 底部的 **Issue Navigator**（⚠️ 图标）查看错误信息
 - 查看 **Report Navigator**（📊 图标）查看详细的构建日志
 
@@ -268,6 +300,7 @@ open ios/Runner.xcworkspace
 如果命令行打包遇到签名问题，可以在 Xcode 中直接打包：
 
 #### 方法 1：使用已生成的 Archive
+
 1. Archive 已经生成在：`build/ios/archive/Runner.xcarchive`
 2. 在终端运行：
    ```bash
@@ -291,6 +324,7 @@ open ios/Runner.xcworkspace
    - 选择保存位置，IPA 文件会导出到指定位置
 
 #### 方法 2：在 Xcode 中重新 Archive
+
 1. 打开项目：`open ios/Runner.xcworkspace`
 2. 在 Xcode 顶部选择 **Any iOS Device** 或你的真机设备（不能选择模拟器）
 3. 在菜单选择 **Product > Archive**
@@ -335,6 +369,7 @@ open ios/Runner.xcworkspace
      - 选择分发方式（Development/Ad-Hoc/App Store）
 
 # 项目处理
+
 - 清空缓存：flutter clean
 - 重新下载依赖：flutter pub get
 - stful : 快捷创建有状态的 widget

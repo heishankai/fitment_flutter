@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fitment_flutter/theme/app_colors.dart';
 
 class ButtonWidget extends StatelessWidget {
   final String title;
@@ -25,12 +26,12 @@ class ButtonWidget extends StatelessWidget {
                     end: Alignment.bottomRight,
                     stops: [0.0, 1.0],
                     colors: [
-                      Color(0xFF00CEC9), // #00cec9
-                      Color(0xFF00B4D8), // #00b4d8
+                      AppColors.primary,
+                      AppColors.primaryGradientEnd,
                     ],
                   )
                 : null,
-            color: enable ? null : const Color(0xFFB2F7F5),
+            color: enable ? null : AppColors.textDisable,
             borderRadius: BorderRadius.circular(30),
             boxShadow: enable
                 ? [
@@ -47,7 +48,7 @@ class ButtonWidget extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: enable ? Colors.white : Colors.grey[600],
+              color: enable ? AppColors.textInverse : AppColors.textGrey,
             ),
           ),
         ),

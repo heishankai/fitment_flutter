@@ -1,12 +1,25 @@
 // Flutter 核心组件库
 import 'package:fitment_flutter/dao/login_dao.dart';
-import 'package:fitment_flutter/pages/login_page/index.dart';
-import 'package:fitment_flutter/navigator/tab_navigator.dart';
+import 'package:fitment_flutter/pages/login/index.dart';
+import 'package:fitment_flutter/components/tab_navigator.dart';
 import 'package:fitment_flutter/utils/screen_adapter_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:fitment_flutter/theme/app_colors.dart';
 import 'package:flutter_hi_cache/flutter_hi_cache.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // 解决安卓真机顶部状态栏灰色问题：设置状态栏颜色与主色一致
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: AppColors.primary,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -17,13 +30,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '叮当师傅',
-      // 配置应用主题，使用 #00cec9 作为主色调，启用 Material 3 设计
+      debugShowCheckedModeBanner: false, // 移除调试标签
+      // 配置应用主题，参考 fitment-mini-program uni.scss
       theme: ThemeData(
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFF00CEC9), // #00cec9
-          onPrimary: Colors.white,
-          secondary: Color(0xFF00CEC9),
-          onSecondary: Colors.white,
+          primary: AppColors.primary,
+          onPrimary: AppColors.textInverse,
+          secondary: AppColors.primary,
+          onSecondary: AppColors.textInverse,
+          error: AppColors.error,
+          surface: AppColors.bg,
         ),
         useMaterial3: true,
       ),

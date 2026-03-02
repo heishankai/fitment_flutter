@@ -15,12 +15,12 @@ class _ScreenPageState extends State<ScreenPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('屏幕适配测试'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
+        // leading: IconButton(
+        //   icon: const Icon(Icons.arrow_back),
+        //   onPressed: () {
+        //     Navigator.of(context).pop();
+        //   },
+        // ),
       ),
       body: Center(
         child: Column(
