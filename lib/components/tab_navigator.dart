@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fitment_flutter/theme/app_colors.dart';
-import 'package:fitment_flutter/pages/home/index.dart';
+import 'package:fitment_flutter/pages/home/h5_home.dart';
 import 'package:fitment_flutter/pages/message/index.dart';
 import 'package:fitment_flutter/pages/mine/index.dart';
 import 'package:fitment_flutter/pages/income/index.dart';
@@ -33,7 +33,7 @@ class _TabNavigatorState extends State<TabNavigator> {
   void initState() {
     super.initState();
     _pages = [
-      HomePage(key: _pageKeys[0]),
+      HomeH5Page(key: _pageKeys[0]),
       IncomePage(key: _pageKeys[1]),
       MessagePage(key: _pageKeys[2]),
       MinePage(key: _pageKeys[3]),

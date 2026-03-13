@@ -10,8 +10,10 @@ import 'package:vibration/vibration.dart';
 
 import 'package:fitment_flutter/components/media_picker.dart';
 import 'package:fitment_flutter/config/api_config.dart';
+import 'package:fitment_flutter/config/h5_config.dart';
 import 'package:fitment_flutter/utils/navigator_util.dart';
 import 'package:fitment_flutter/dao/login_dao.dart';
+import 'package:fitment_flutter/utils/new_order_notification.dart';
 
 class HiWebView extends StatefulWidget {
   final String url;
@@ -20,6 +22,9 @@ class HiWebView extends StatefulWidget {
   final bool hideAppBar;
   final bool backForbid;
 
+  /// 从 openWebView 打开的子页面返回时回调（用于首页从地图/订单详情返回后刷新）
+  final VoidCallback? onOpenWebViewReturn;
+
   const HiWebView({
     super.key,
     required this.url,
@@ -27,6 +32,7 @@ class HiWebView extends StatefulWidget {
     this.statusBarColor,
     this.hideAppBar = false,
     this.backForbid = false,
+    this.onOpenWebViewReturn,
   });
 
   @override
@@ -163,6 +169,22 @@ class _HiWebViewState extends State<HiWebView> {
                 fieldName: options.fieldName || 'file',
                 extraFields: options.extraFields || {}
               });
+          },
+
+          /** 打开新 WebView 页面，用于 map-picker、order 等需独立页面的路由 */
+          openWebView: function (path, title) {
+            if (!path || typeof path !== 'string') return;
+            return window.flutter_inappwebview
+              .callHandler('openWebView', { path: path, title: title || '' });
+          },
+
+          /** 新订单来了：震动 + 本地通知，H5 收到新订单时调用 */
+          onNewOrder: function (order) {
+            if (!order) return;
+            var data = typeof order === 'string' ? (function(){try{return JSON.parse(order);}catch(e){return null;}})() : order;
+            if (!data) return;
+            return window.flutter_inappwebview
+              .callHandler('FlutterOnNewOrder', data);
           }
         };
 
@@ -582,6 +604,58 @@ class _HiWebViewState extends State<HiWebView> {
                         handlerName: 'FlutterVibrate',
                         callback: (args) async {
                           await _handleVibrate(args);
+                        },
+                      );
+
+                      /// ⭐ JS Bridge：打开新 WebView（map-picker、order 等）
+                      controller.addJavaScriptHandler(
+                        handlerName: 'openWebView',
+                        callback: (args) async {
+                          if (!mounted) return;
+                          try {
+                            final params =
+                                args.isNotEmpty ? args[0] as Map : {};
+                            String path =
+                                (params['path'] as String?)?.trim() ?? '';
+                            final title = params['title'] as String?;
+                            if (path.isEmpty) return;
+                            if (path.startsWith('/') &&
+                                !path.startsWith('/fitment-h5')) {
+                              path = '/fitment-h5$path';
+                            }
+                            final url = H5Config.getH5Url(path);
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (ctx) => HiWebView(
+                                  url: url,
+                                  title: title,
+                                  statusBarColor: '2d635e',
+                                ),
+                              ),
+                            );
+                            // 从子 WebView 返回后触发刷新
+                            widget.onOpenWebViewReturn?.call();
+                          } catch (e) {
+                            debugPrint('openWebView 失败: $e');
+                          }
+                        },
+                      );
+
+                      /// ⭐ JS Bridge：新订单来了（震动 + 通知）
+                      controller.addJavaScriptHandler(
+                        handlerName: 'FlutterOnNewOrder',
+                        callback: (args) async {
+                          try {
+                            final order = args.isNotEmpty
+                                ? args[0] as Map<String, dynamic>?
+                                : null;
+                            if (order != null) {
+                              await NewOrderNotification.onNewOrder(order);
+                            }
+                          } catch (e) {
+                            debugPrint('FlutterOnNewOrder 失败: $e');
+                          }
                         },
                       );
 
