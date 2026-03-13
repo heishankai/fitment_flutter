@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fitment_flutter/theme/app_colors.dart';
 import 'package:fitment_flutter/config/h5_config.dart';
 import 'package:fitment_flutter/pages/webview.dart';
 import 'package:fitment_flutter/mixins/tab_page_refresh_mixin.dart';
@@ -34,17 +35,20 @@ class _HomeH5PageState extends State<HomeH5Page>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return SafeArea(
-      top: true,
-      child: HiWebView(
-        key: ValueKey(_refreshKey),
-        url: H5Config.getH5Url(_homePath),
-        hideAppBar: true,
-        statusBarColor: '2d635e',
-        onOpenWebViewReturn: () {
-          // 从地图选择器/订单详情等 WebView 返回时刷新
-          if (mounted) setState(() => _refreshKey++);
-        },
+    return Container(
+      color: AppColors.primary,
+      child: SafeArea(
+        top: true,
+        child: HiWebView(
+          key: ValueKey(_refreshKey),
+          url: H5Config.getH5Url(_homePath),
+          hideAppBar: true,
+          statusBarColor: '2d635e',
+          onOpenWebViewReturn: () {
+            // 从地图选择器/订单详情等 WebView 返回时刷新
+            if (mounted) setState(() => _refreshKey++);
+          },
+        ),
       ),
     );
   }

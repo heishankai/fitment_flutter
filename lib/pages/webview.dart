@@ -11,6 +11,7 @@ import 'package:vibration/vibration.dart';
 import 'package:fitment_flutter/components/media_picker.dart';
 import 'package:fitment_flutter/config/api_config.dart';
 import 'package:fitment_flutter/config/h5_config.dart';
+import 'package:fitment_flutter/theme/app_colors.dart';
 import 'package:fitment_flutter/utils/navigator_util.dart';
 import 'package:fitment_flutter/dao/login_dao.dart';
 import 'package:fitment_flutter/utils/new_order_notification.dart';
@@ -42,6 +43,7 @@ class HiWebView extends StatefulWidget {
 class _HiWebViewState extends State<HiWebView> {
   InAppWebViewController? _controller;
   bool _isLoading = true;
+  bool _isUploading = false;
   String _webTitle = '';
 
   final FlutterLocalNotificationsPlugin _notifications =
@@ -515,9 +517,11 @@ class _HiWebViewState extends State<HiWebView> {
                               });
                             }
 
-                            // 上传每个文件（注意：这里才开始真正上传，loading应该在这里显示）
+                            // 上传每个文件（显示上传 loading）
+                            if (mounted) setState(() => _isUploading = true);
                             final List<Map<String, dynamic>> uploadResults = [];
-                            for (final media in result) {
+                            try {
+                              for (final media in result) {
                               try {
                                 final uploadResultsList =
                                     await MediaPicker.upload(
@@ -581,6 +585,9 @@ class _HiWebViewState extends State<HiWebView> {
                                   'error': '上传失败: $e',
                                 });
                               }
+                            }
+                            } finally {
+                              if (mounted) setState(() => _isUploading = false);
                             }
 
                             return uploadResults;
@@ -726,18 +733,21 @@ class _HiWebViewState extends State<HiWebView> {
                               });
                             }
 
-                            // 使用 MediaPicker.upload 上传
-                            final results = await MediaPicker.upload(
-                              mediaFiles: [mediaFile],
-                              uploadUrl: uploadUrl,
-                              fieldName: fieldName,
-                              headers: headers,
-                              extraFields: extraFieldsMap.isNotEmpty
-                                  ? extraFieldsMap
-                                  : null,
-                            );
+                            // 显示上传 loading
+                            if (mounted) setState(() => _isUploading = true);
+                            try {
+                              // 使用 MediaPicker.upload 上传
+                              final results = await MediaPicker.upload(
+                                mediaFiles: [mediaFile],
+                                uploadUrl: uploadUrl,
+                                fieldName: fieldName,
+                                headers: headers,
+                                extraFields: extraFieldsMap.isNotEmpty
+                                    ? extraFieldsMap
+                                    : null,
+                              );
 
-                            if (results.isEmpty) {
+                              if (results.isEmpty) {
                               return {
                                 'success': false,
                                 'message': '上传失败：无返回结果',
@@ -761,6 +771,9 @@ class _HiWebViewState extends State<HiWebView> {
                                 'code': result['code'] ?? 500,
                                 'data': result['data'],
                               };
+                            }
+                            } finally {
+                              if (mounted) setState(() => _isUploading = false);
                             }
                           } catch (e) {
                             return {
@@ -863,6 +876,31 @@ class _HiWebViewState extends State<HiWebView> {
                   ),
                   if (_isLoading)
                     const Center(child: CircularProgressIndicator()),
+                  if (_isUploading)
+                    Container(
+                      color: Colors.black26,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '上传中...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
