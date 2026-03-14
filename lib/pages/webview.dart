@@ -879,7 +879,7 @@ class _HiWebViewState extends State<HiWebView> {
                   if (_isUploading)
                     Container(
                       color: Colors.black26,
-                      child: Center(
+                      child: const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -888,7 +888,7 @@ class _HiWebViewState extends State<HiWebView> {
                                 AppColors.primary,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12),
                             Text(
                               '上传中...',
                               style: TextStyle(
