@@ -144,20 +144,18 @@ class _IncomePageState extends State<IncomePage>
                         child: ConstrainedBox(
                           constraints:
                               BoxConstraints(minHeight: constraints.maxHeight),
-                          child: IntrinsicHeight(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                AmountSummaryCard(
-                                  walletInfo: _walletInfo,
-                                  onWithdraw: _handleWithdraw,
-                                ),
-                                _buildMenu(),
-                                AccountDetails(details: _accountDetails),
-                                const Spacer(),
-                                const SizedBox(height: 20),
-                              ],
-                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              AmountSummaryCard(
+                                walletInfo: _walletInfo,
+                                onWithdraw: _handleWithdraw,
+                              ),
+                              _buildMenu(),
+                              AccountDetails(details: _accountDetails),
+                              const SizedBox(height: 20),
+                            ],
                           ),
                         ),
                       );
@@ -237,7 +235,8 @@ class _IncomePageState extends State<IncomePage>
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: AppColors.textGrey),
+            const Icon(Icons.chevron_right,
+                size: 20, color: AppColors.textGrey),
           ],
         ),
       ),

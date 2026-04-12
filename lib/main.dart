@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '叮当师傅',
+      title: '智惠装工匠',
       debugShowCheckedModeBanner: false, // 移除调试标签
       // 配置应用主题，参考 fitment-mini-program uni.scss
       theme: ThemeData(

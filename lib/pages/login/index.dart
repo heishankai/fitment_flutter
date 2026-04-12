@@ -69,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
         controller: _scrollController,
         children: [
           hiSpace(height: 100),
-          const Text('欢迎登录叮当师傅',
+          const Text('欢迎登录智惠装',
               style: TextStyle(
                   fontSize: 38,
                   fontWeight: FontWeight.bold,

@@ -187,6 +187,11 @@ class _HiWebViewState extends State<HiWebView> {
             if (!data) return;
             return window.flutter_inappwebview
               .callHandler('FlutterOnNewOrder', data);
+          },
+
+          /** 关闭当前 Flutter WebView（等价 Navigator.pop，不处理 H5 内 history） */
+          pop: function () {
+            return window.flutter_inappwebview.callHandler('nativePop');
           }
         };
 
@@ -200,6 +205,18 @@ class _HiWebViewState extends State<HiWebView> {
   // -------------------------
   bool _shouldExit(String url) {
     return _catchUrls.any((u) => url.startsWith(u));
+  }
+
+  /// 与系统返回 / 导航栏返回一致：Web 有历史则后退，否则关闭当前 WebView
+  Future<void> _handleHybridBack() async {
+    if (!mounted) return;
+    if (_controller != null && await _controller!.canGoBack()) {
+      if (!mounted) return;
+      await _controller!.goBack();
+    } else {
+      if (!mounted) return;
+      NavigatorUtil.pop(context);
+    }
   }
 
   // -------------------------
@@ -259,8 +276,8 @@ class _HiWebViewState extends State<HiWebView> {
       }
       const androidDetails = AndroidNotificationDetails(
         'fitment_channel',
-        '叮当师傅通知',
-        channelDescription: '叮当师傅应用通知',
+        '智惠装通知',
+        channelDescription: '智惠装应用通知',
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
@@ -384,11 +401,7 @@ class _HiWebViewState extends State<HiWebView> {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
-        if (_controller != null && await _controller!.canGoBack()) {
-          _controller!.goBack();
-        } else {
-          NavigatorUtil.pop(context);
-        }
+        await _handleHybridBack();
       },
       child: Scaffold(
         body: Column(
@@ -611,6 +624,24 @@ class _HiWebViewState extends State<HiWebView> {
                         handlerName: 'FlutterVibrate',
                         callback: (args) async {
                           await _handleVibrate(args);
+                        },
+                      );
+
+                      /// ⭐ JS Bridge：关闭当前原生 WebView（window.fitment_flutter.pop）
+                      /// 注意：嵌在 Tab 内的首页 WebView 没有可 pop 的 Flutter 路由，
+                      /// 若走 NavigatorUtil.pop → SystemNavigator.pop 会直接退出 App（安卓上像「失败」）；
+                      /// H5 await pop() 也可能因 Activity 结束导致 Promise reject，进而误判「接口失败」。
+                      controller.addJavaScriptHandler(
+                        handlerName: 'nativePop',
+                        callback: (args) async {
+                          if (!mounted) return true;
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          } else if (_controller != null &&
+                              await _controller!.canGoBack()) {
+                            await _controller!.goBack();
+                          }
+                          return true;
                         },
                       );
 
@@ -853,7 +884,7 @@ class _HiWebViewState extends State<HiWebView> {
                         builder: (ctx) => AlertDialog(
                           title: const Text('获取位置'),
                           content: const Text(
-                            '叮当师傅需要获取您的位置信息以提供地图选点服务，是否允许？',
+                            '智惠装需要获取您的位置信息以提供地图选点服务，是否允许？',
                           ),
                           actions: [
                             TextButton(
@@ -924,13 +955,7 @@ class _HiWebViewState extends State<HiWebView> {
           IconButton(
             icon: const BackButtonIcon(),
             color: iconColor,
-            onPressed: () async {
-              if (_controller != null && await _controller!.canGoBack()) {
-                _controller!.goBack();
-              } else {
-                NavigatorUtil.pop(context);
-              }
-            },
+            onPressed: () => _handleHybridBack(),
           ),
           Expanded(
             child: Text(

@@ -96,6 +96,8 @@ class _WithdrawPageState extends State<WithdrawPage> {
     } else {
       _amountController.text = amount.toString();
     }
+    // 仅改 Controller 不会触发 build，需刷新以更新「确认提现」按钮状态
+    if (mounted) setState(() {});
   }
 
   /// 处理金额输入
@@ -108,6 +110,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
       );
       showToast(context, '提现金额不能超过可提现金额');
     }
+    if (mounted) setState(() {});
   }
 
   /// 格式化银行卡号
@@ -202,7 +205,10 @@ class _WithdrawPageState extends State<WithdrawPage> {
                             gradient: const LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [AppColors.primary, AppColors.primaryGradientEnd],
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primaryGradientEnd
+                              ],
                             ),
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
@@ -444,19 +450,19 @@ class _WithdrawPageState extends State<WithdrawPage> {
                             color: AppColors.warning.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Row(
+                          child: const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.info_outline,
                                 size: 16,
-                                          color: AppColors.textGrey,
+                                color: AppColors.textGrey,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
+                                  children: [
                                     Text(
                                       '• 每周发起一次提现，周五统一到账',
                                       style: TextStyle(

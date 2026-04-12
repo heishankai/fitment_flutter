@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fitment_flutter/theme/app_colors.dart';
+import 'package:fitment_flutter/utils/datetime_mainland.dart';
 
 class AccountDetails extends StatelessWidget {
   final List<dynamic> details;
@@ -11,16 +12,7 @@ class AccountDetails extends StatelessWidget {
   String _money(dynamic value) =>
       (double.tryParse(value?.toString() ?? '0') ?? 0).toStringAsFixed(2);
 
-  String _time(String? value) {
-    if (value == null || value.isEmpty) return '';
-    try {
-      final d = DateTime.parse(value);
-      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
-          '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return '';
-    }
-  }
+  String _time(dynamic value) => formatMainlandChinaDateTime(value);
 
   @override
   Widget build(BuildContext context) {

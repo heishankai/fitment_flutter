@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fitment_flutter/theme/app_colors.dart';
 import 'package:fitment_flutter/dao/wallet_dao.dart';
 import 'package:fitment_flutter/utils/view_util.dart';
+import 'package:fitment_flutter/utils/datetime_mainland.dart';
 
 /// 提现记录页面
 class WithdrawRecordPage extends StatefulWidget {
@@ -61,21 +62,8 @@ class _WithdrawRecordPageState extends State<WithdrawRecordPage> {
     await _loadData();
   }
 
-  /// 格式化时间
-  String _formatTime(String? time) {
-    if (time == null || time.isEmpty) return '';
-    try {
-      final dateTime = DateTime.parse(time);
-      final year = dateTime.year.toString();
-      final month = dateTime.month.toString().padLeft(2, '0');
-      final day = dateTime.day.toString().padLeft(2, '0');
-      final hour = dateTime.hour.toString().padLeft(2, '0');
-      final minute = dateTime.minute.toString().padLeft(2, '0');
-      return '$year-$month-$day $hour:$minute';
-    } catch (e) {
-      return '';
-    }
-  }
+  /// 格式化时间（固定东八区，不依赖系统时区）
+  String _formatTime(dynamic time) => formatMainlandChinaDateTime(time);
 
   /// 格式化金额
   String _formatMoney(dynamic amount) {
@@ -138,25 +126,37 @@ class _WithdrawRecordPageState extends State<WithdrawRecordPage> {
           : RefreshIndicator(
               onRefresh: _onRefresh,
               child: _withdrawRecords.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.receipt_long,
-                            size: 64,
-                            color: Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '暂无提现记录',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade500,
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints:
+                                BoxConstraints(minHeight: constraints.maxHeight),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.receipt_long,
+                                    size: 64,
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    '暂无提现记录',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
