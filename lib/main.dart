@@ -6,10 +6,12 @@ import 'package:fitment_flutter/utils/screen_adapter_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fitment_flutter/theme/app_colors.dart';
+import 'package:fitment_flutter/utils/app_error_handling.dart';
 import 'package:flutter_hi_cache/flutter_hi_cache.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  AppErrorHandling.install();
   // 解决安卓真机顶部状态栏灰色问题：设置状态栏颜色与主色一致
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -29,6 +31,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: AppErrorHandling.scaffoldMessengerKey,
       title: '智惠装工匠',
       debugShowCheckedModeBanner: false, // 移除调试标签
       // 配置应用主题，参考 fitment-mini-program uni.scss

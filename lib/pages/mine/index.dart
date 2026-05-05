@@ -4,6 +4,7 @@ import 'package:fitment_flutter/dao/user_dao.dart';
 import 'package:fitment_flutter/utils/navigator_util.dart';
 import 'package:fitment_flutter/config/h5_config.dart';
 import 'package:fitment_flutter/pages/mine/edit_info.dart';
+import 'package:fitment_flutter/pages/mine/service_standards_page.dart';
 import 'package:fitment_flutter/components/loading_widget.dart';
 import 'package:fitment_flutter/mixins/tab_page_refresh_mixin.dart';
 
@@ -433,6 +434,20 @@ class _MinePageState extends State<MinePage>
             title: '我的工地订单',
             onTap: () => _openWebView('/fitment-h5/mine/my-construction',
                 title: '我的工地订单'),
+          ),
+          const SizedBox(height: 12),
+          _buildMenuItem(
+            icon: Icons.menu_book_outlined,
+            color: AppColors.primary,
+            title: '服务规范',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ServiceStandardsPage(),
+                ),
+              );
+            },
           ),
         ],
       ),
