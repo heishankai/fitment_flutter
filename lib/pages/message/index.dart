@@ -85,14 +85,16 @@ class _MessagePageState extends State<MessagePage>
     }
   }
 
-  void _openH5(String path, String title) {
+  Future<void> _openH5(String path, String title) async {
     final url = H5Config.getH5Url(path);
-    NavigatorUtil.jumpH5(
+    await NavigatorUtil.jumpH5(
       context: context,
       url: url,
       title: title,
       statusBarColor: '2d635e',
     );
+    // H5 页面内会更新已读状态，返回消息页后重新拉取角标。
+    if (mounted) _loadData();
   }
 
   void _handleClickMessage(Map<String, dynamic> item) async {
